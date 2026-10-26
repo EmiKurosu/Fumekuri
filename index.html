@@ -59,7 +59,7 @@
   #log { font-size: 12px; color: var(--dim); white-space: pre-line; max-height: 5.6em; overflow: auto; }
   #wiz { position: fixed; inset: 0; z-index: 20; background: var(--bg); overflow-y: auto; -webkit-overflow-scrolling: touch; padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
   #wiz [hidden], #wiz[hidden] { display: none !important; }
-  #wiz .box { max-width: 760px; margin: 0 auto; display: grid; gap: 14px; }
+  #wiz .box { padding-top: 40px; max-width: 760px; margin: 0 auto; display: grid; gap: 14px; }
   #wiz h2 { font-size: 18px; margin: 4px 0 0; }
   #wiz p, #wiz small { margin: 0; color: var(--dim); }
   #wiz input[type=text] { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-height: 48px; padding: 0 12px; width: 100%; }
@@ -81,7 +81,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v15</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v17</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><span>小節</span><b id="bar">–</b><span id="pg">p.–</span><span id="cf" title="追従の確かさ"></span></div>
 </header>
@@ -115,6 +115,7 @@
 </footer>
 
 <div id="wiz" hidden>
+  <button type="button" class="closebtn" id="wclosebtn" aria-label="閉じる" style="position:fixed;top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));z-index:25">×</button>
   <div class="box">
     <div id="wsetup" style="gap:14px">
       <h2>お手本の録音から曲を作る</h2>
@@ -122,7 +123,7 @@
       <input type="text" id="wtitle" placeholder="曲の名前（例: ショパン バラード1番）" maxlength="60">
       <div><button type="button" id="wpickimg">① 楽譜の写真を選ぶ（全ページ）</button><input type="file" id="wimgs" accept="image/*" multiple hidden></div>
       <div id="wthumbs"></div>
-      <small>選んだ順がページの順番になります。順番が違うときは、いったん「×」で消して選び直してください。</small>
+      <small>選んだ順がページの順番になります。順番が違うときは、各写真の下の「◀ ▶」で入れ替えられます。</small>
       <h2 style="font-size:16px">② お手本の取り込み方を選びます</h2>
       <div style="display:grid;gap:10px;border:1px solid var(--line);border-radius:12px;padding:12px">
         <b>方法A：録音ファイル・動画ファイルを使う</b>
@@ -135,7 +136,6 @@
         <small>iPhone の YouTube などで流した演奏や、目の前の生演奏を、この iPad のマイクで聞かせて印を付けます。YouTube の音は直接は取り込めないため、別の機器で流してください（静かな場所で、スピーカーを近づけます）。</small>
         <button type="button" id="wmic">マイクで聞かせて、めくる場所に印を付ける</button>
       </div>
-      <div class="wrow"><button type="button" id="wcancel">やめる</button></div>
       <div id="wsetmsg" style="color:var(--warn)"></div>
     </div>
     <div id="wtapview" hidden>
@@ -488,7 +488,7 @@
     order.forEach(function (lab, i) { var p = barPage[lab]; var l = self.runs[self.runs.length - 1]; if (l && l[2] === p) l[1] = i; else self.runs.push([i, i, p]); });
     this.runOf = new Int32Array(order.length);
     this.runs.forEach(function (r, k) { for (var i = r[0]; i <= r[1]; i++) self.runOf[i] = k; });
-    this.disp = 0; this.stable = 0; this.events = []; this.mEma = 0.7;
+    this.disp = 0; this.stable = 0; this.events = []; this.mEma = 0.7; this.strict = 0;
   }
   PageTurner.prototype.displayedPage = function () { return this.runs[this.disp][2]; };
   PageTurner.prototype._turn = function (t, kind, to, pos) { this.events.push({ t: t, kind: kind, from: this.disp, to: to, pos: pos }); this.disp = to; return kind; };
@@ -498,6 +498,7 @@
       var recent = 0; for (var i = 0; i < this.hist.length; i++) recent += this.hist[i]; recent /= this.hist.length;
       if (conf >= this.confThr) this.mEma = 0.985 * this.mEma + 0.015 * match;      // a poor reference (room recording) matches less well: lower the bar to what is normal for this reference
       var mthr = Math.min(this.matchThr, Math.max(0.2, 0.62 * this.mEma));
+      if (conf >= this.confThr && match >= this.matchThr) this.strict += this.dt; else this.strict = 0;   // clear evidence only (for big jumps)
       if (conf >= this.confThr && match >= mthr) { this.stable += this.dt; this.bad = 0; }
       else if (conf >= 0.9 && match >= 0.1 && recent >= 0.45 && this.bad < this.graceS) this.bad += this.dt;
       else { this.stable = 0; this.bad = 0; }
@@ -514,7 +515,7 @@
       return null;
     }
     if (cur === this.disp - 1 && pos < this.runs[cur][1] + 1) return null;
-    if (cur !== this.disp) return this._turn(t, 'resync', cur, pos);
+    if (cur !== this.disp) { if (cur !== this.disp + 1 && this.strict < (Math.abs(cur - this.disp) > 1 ? 6.0 : 3.0)) return null; return this._turn(t, 'resync', cur, pos); }     // a jump to another page needs 3 s (more than one page away: 6 s) of clear evidence
     return null;
   };
 
@@ -985,7 +986,10 @@
       var f = document.createElement('figure'), g = document.createElement('img'), c = document.createElement('figcaption'), x = document.createElement('button');
       g.src = im.thumb; c.textContent = (i + 1) + ' ページ'; x.textContent = '×'; x.setAttribute('aria-label', (i + 1) + 'ページ目を消す');
       x.onclick = function () { W.imgs.splice(i, 1); wthumbs(); wcheck(); };
-      f.appendChild(g); f.appendChild(c); f.appendChild(x); box.appendChild(f);
+      var mv = document.createElement('div'); mv.style.cssText = 'display:flex;gap:4px;justify-content:center;margin-top:2px';
+      [['◀', -1], ['▶', 1]].forEach(function (d) { var bt = document.createElement('button'); bt.textContent = d[0]; bt.style.cssText = 'position:static;min-height:26px;width:32px;padding:0;font-size:12px;border-radius:6px'; bt.setAttribute('aria-label', d[1] < 0 ? '前へ移動' : '後ろへ移動');
+        bt.onclick = function () { var j = i + d[1]; if (j < 0 || j >= W.imgs.length) return; var t = W.imgs[i]; W.imgs[i] = W.imgs[j]; W.imgs[j] = t; wthumbs(); }; mv.appendChild(bt); });
+      f.appendChild(g); f.appendChild(c); f.appendChild(mv); f.appendChild(x); box.appendChild(f);
     });
   }
   function loadPhoto(file) {                       // -> {data: jpeg data URL (<=2000 px), w, h, thumb, rect}
@@ -1025,7 +1029,7 @@
       .catch(function () { try { c.close(); } catch (e) {} W.capture = true; W.analyzing = false; W.ready = true; $('waudinfo').innerHTML = '<small>' + file.name + ' ✔（この形式は再生しながら取り込みます。最後まで通して再生する必要があります）</small>'; });
   }
   $('newbtn').onclick = wopen;
-  $('wcancel').onclick = wclose;
+  $('wclosebtn').onclick = function () { if (W && W.taps && W.taps.length && !confirm('印を付けた内容は消えます。閉じてよろしいですか？')) return; wclose(); };
   $('wpickimg').onclick = function () { $('wimgs').click(); };
   $('wimgs').onchange = function () {
     var fs = Array.prototype.slice.call(this.files); this.value = ''; if (!fs.length) return;
