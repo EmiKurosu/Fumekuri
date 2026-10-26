@@ -46,6 +46,8 @@
   summary { list-style: none; display: grid; place-items: center; min-height: 48px; padding: 0 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); cursor: pointer; }
   summary::-webkit-details-marker { display: none; }
   .settings { position: absolute; right: 0; bottom: 58px; width: min(86vw, 360px); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 14px; z-index: 5; box-shadow: 0 8px 28px rgba(0,0,0,.4); }
+  .settings { padding-top: 40px; }
+  .closebtn { position: absolute; top: 6px; right: 6px; width: 34px; min-height: 34px; padding: 0; border-radius: 17px; font-size: 20px; line-height: 1; display: grid; place-items: center; }
   .settings label { display: grid; gap: 4px; font-size: 14px; }
   .settings label span { display: flex; justify-content: space-between; color: var(--dim); }
   .settings input[type=range] { width: 100%; min-height: 32px; accent-color: var(--accent); }
@@ -76,6 +78,7 @@
   <input type="file" id="score" accept=".json,application/json" hidden><button id="openbtn" type="button">楽譜を開く</button>
   <details><summary>設定</summary>
     <div class="settings">
+      <button type="button" class="closebtn" id="closesettings" aria-label="設定を閉じる">×</button>
       <label><span>めくる位置（最終小節の中）<b id="fracv">55%</b></span><input type="range" id="frac" min="20" max="90" step="5" value="55"></label>
       <label><span>次ページの予告（何小節前から）<b id="prevv">2</b></span><input type="range" id="prevbars" min="0" max="4" step="1" value="2"></label>
       <label><span>テンポの追い方</span>
@@ -84,6 +87,7 @@
       <button type="button" id="learnbtn" disabled>通して弾いて覚える（上級）</button>
       <button type="button" id="learnfilebtn">録音ファイルから覚える（上級）</button><input type="file" id="learnfile" accept="audio/*" hidden>
       <button type="button" id="learnreset">覚えたテンポを消す</button>
+      <button type="button" id="delscore">保存した楽譜を消す</button>
       <small>ペダルの信号（→ / ← / PageDown / PageUp）でも、手動でめくれます。</small>
       <div id="log"></div>
     </div>
@@ -656,9 +660,9 @@
 
 
   /* ---------- learn the tempo from one straight play-through ---------- */
-  function sig() { return 'tempo:' + (pkg.title || '') + ':' + pkg.order.length + ':' + pkg.T; }
+  function sig() { if (!pkg) return 'tempo:'; return 'tempo:' + (pkg.title || '') + ':' + pkg.order.length + ':' + pkg.T; }
   function showTempoInfo() {
-    $('tempoinfo').textContent = tempo ? 'テンポ: 学習済み（' + pkg.order[tempo.firstBar] + '〜' + pkg.order[Math.min(tempo.lastBar, pkg.order.length) - 1] + ' 小節、' + new Date(tempo.at).toLocaleDateString('ja-JP') + '）'
+    $('tempoinfo').textContent = tempo && pkg ? 'テンポ: 学習済み（' + pkg.order[tempo.firstBar] + '〜' + pkg.order[Math.min(tempo.lastBar, pkg.order.length) - 1] + ' 小節、' + new Date(tempo.at).toLocaleDateString('ja-JP') + '）'
       : 'テンポ: 未学習（「弾いて覚える」で、通して1回弾くと、速さの変化を覚えます）';
   }
   function applyLearned(perf, startIdx) {
@@ -710,6 +714,26 @@
   $('learnfile').onchange = function () { if (this.files[0]) learnFromFile(this.files[0]); this.value = ''; };
   $('learnreset').onclick = function () { tempo = null; store.putKey(sig(), ''); showTempoInfo(); log('覚えたテンポを消しました'); };
 
+
+  /* ---------- close the settings / delete the saved score ---------- */
+  var det = document.querySelector('details');
+  $('closesettings').onclick = function () { det.open = false; };
+  document.addEventListener('pointerdown', function (e) { if (det.open && !det.contains(e.target)) det.open = false; });
+  var delArmed = null;
+  $('delscore').onclick = function () {
+    var b = this;
+    if (!delArmed) { b.textContent = 'もう一度押すと、保存した楽譜を消します'; delArmed = setTimeout(function () { delArmed = null; b.textContent = '保存した楽譜を消す'; }, 4000); return; }
+    clearTimeout(delArmed); delArmed = null; b.textContent = '保存した楽譜を消す';
+    if (running) stop();
+    store.clear(function () {
+      pkg = null; pager = null; tempo = null; imgs = []; pages = {}; shownPage = null; view = null; det.open = false;
+      var c = $('page'), g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height); hidePreview();
+      $('title').textContent = '譜めくりくん'; $('bar').textContent = '–'; $('pg').textContent = 'p.–'; $('go').disabled = true; $('learnbtn').disabled = true;
+      $('startbar').innerHTML = ''; showTempoInfo();
+      $('msg').hidden = false; $('msg').textContent = '保存した楽譜を消しました。「楽譜を開く」を押して、楽譜データ（.json）を選んでください。';
+    });
+  };
+
   /* ---------- load ---------- */
   var tickOn = false;
   function boot(p, save) {
@@ -730,6 +754,7 @@
   var store = {
     open: function (cb) { try { var r = indexedDB.open('fumekuri', 1); r.onupgradeneeded = function () { r.result.createObjectStore('kv'); }; r.onsuccess = function () { cb(r.result); }; r.onerror = function () { cb(null); }; } catch (e) { cb(null); } },
     put: function (text) { store.open(function (db) { if (!db) return; try { db.transaction('kv', 'readwrite').objectStore('kv').put(text, 'last'); } catch (e) {} }); },
+    clear: function (cb) { store.open(function (db) { if (!db) return cb(); try { var q = db.transaction('kv', 'readwrite').objectStore('kv').clear(); q.onsuccess = q.onerror = function () { cb(); }; } catch (e) { cb(); } }); },
     putKey: function (k, v) { store.open(function (db) { if (!db) return; try { db.transaction('kv', 'readwrite').objectStore('kv').put(v, k); } catch (e) {} }); },
     getKey: function (k, cb) { store.open(function (db) { if (!db) return cb(null); try { var q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = function () { cb(q.result || null); }; q.onerror = function () { cb(null); }; } catch (e) { cb(null); } }); },
     get: function (cb) { store.open(function (db) { if (!db) return cb(null); try { var q = db.transaction('kv').objectStore('kv').get('last'); q.onsuccess = function () { cb(q.result || null); }; q.onerror = function () { cb(null); }; } catch (e) { cb(null); } }); }
