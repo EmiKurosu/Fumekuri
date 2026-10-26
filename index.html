@@ -1068,10 +1068,10 @@
   $('wtap').onclick = function () {
     var m = $('wmedia'); if (W.mic) { if (!W.micOn) return; } else if (m.paused && !m.ended) return;
     var t = Math.max(0, (W.mic ? W.now() : m.currentTime) - TAP_DELAY * (W.mic ? 1 : (m.playbackRate || 1))), last = W.taps.length ? W.taps[W.taps.length - 1] : -1;
-    if (t <= last) t = last + 0.05;
+    if (t < last + 0.8 || t < 0.8) { var mm = $('wstat'); wupdate(); mm.textContent = '⚠ 前の印より後ろの位置で押してください（今の再生位置は、前の印より前か、ほぼ同じです）。' + mm.textContent; return; }
     W.taps.push(t); wupdate();
   };
-  $('wundo').onclick = function () { if (!W.taps.length) return; var t = W.taps.pop(), m = $('wmedia'); if (!W.capture && !W.mic) m.currentTime = Math.max(0, t - 6); wupdate(); };
+  $('wundo').onclick = function () { if (!W.taps.length) return; var t = W.taps.pop(), m = $('wmedia'); if (!W.capture && !W.mic) m.currentTime = Math.max(W.taps.length ? W.taps[W.taps.length - 1] : 0, t - 6); wupdate(); };
   $('wplay').onclick = function () { var m = $('wmedia'); if (m.paused || m.ended) { m.play(); this.textContent = '⏸ 一時停止'; } else { m.pause(); this.textContent = '▶ 再生'; } };
   $('wback').onclick = function () { var m = $('wmedia'); if (!W.capture) m.currentTime = Math.max(0, m.currentTime - 10); };
   $('wrate').onclick = function () { var m = $('wmedia'); W.rate = W.rate === 1 ? 0.75 : 1; m.playbackRate = W.rate; this.textContent = 'ゆっくり再生: ' + (W.rate === 1 ? 'オフ' : '0.75倍'); };
