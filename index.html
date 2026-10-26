@@ -1028,7 +1028,7 @@
   };
   $('wmic').onclick = function () {
     if (W.imgs.length < 2) return;
-    W.mic = true; W.file = null; W.marks = []; W.taps = []; W.frames = []; W.rms = []; wshow('wtapview');
+    lvAvg = lvFloor = lvN = 0; W.mic = true; W.file = null; W.marks = []; W.taps = []; W.frames = []; W.rms = []; wshow('wtapview');
     ['wplay', 'wback', 'wrate'].forEach(function (k) { $(k).hidden = true; });
     var AC = window.AudioContext || window.webkitAudioContext; W.ctx = new AC(); if (W.ctx.resume) W.ctx.resume();
     var ex = new AutoPage.ChromaExtractor(W.ctx.sampleRate); W.ex = ex; W.sr = W.ctx.sampleRate;
@@ -1062,12 +1062,16 @@
     } else go();
     m.onended = function () { $('wplay').textContent = '▶ もう一度'; wupdate(); };
   };
-  var lvAvg = 0, lvPeak = 0, lvN = 0;
-  function wlevel(r) {                             // loudness of what the microphone hears while the reference is being recorded
-    lvAvg = lvAvg * 0.9 + r * 0.1; lvN++; if (lvN % 8) return;
-    var pct = Math.min(100, Math.round(Math.sqrt(lvAvg) * 220)); $('wlevelbox').hidden = false; $('wlevel').style.width = pct + '%';
-    $('wlevelmsg').textContent = pct < 10 ? '⚠ 音がほとんど聞こえていません。iPhone のスピーカーを iPad のマイクに近づけ、音量を上げてください。' : pct < 22 ? '音が少し小さいです。もう少し近づけると安心です。' : '音は十分に聞こえています ✔';
-    $('wlevelmsg').style.color = pct < 10 ? 'var(--warn)' : 'var(--fg)';
+  var lvAvg = 0, lvFloor = 0, lvN = 0;
+  function wlevel(r) {                             // how much louder than the room's own noise is what the microphone hears (works whatever the iPad's mic gain is)
+    lvAvg = lvAvg * 0.85 + r * 0.15; lvN++;
+    if (lvN === 25) lvFloor = lvAvg; else if (lvN > 25) lvFloor = Math.min(lvAvg, lvFloor * 1.0005);
+    if (lvN % 6 || lvN < 25) return;
+    var ratio = lvAvg / Math.max(lvFloor, 1e-7), pct = Math.min(100, Math.round(28 * Math.log2(Math.max(1, ratio))));
+    $('wlevelbox').hidden = false; $('wlevel').style.width = Math.max(pct, 3) + '%';
+    var bad = pct < 22;
+    $('wlevelmsg').textContent = bad ? '音が聞こえていないようです（周りの音とほぼ同じ大きさです）。演奏を流してみてください。' : pct < 45 ? '音が聞こえています。もう少し大きいと、さらに安心です。' : '音は十分に聞こえています ✔';
+    $('wlevelmsg').style.color = bad ? 'var(--warn)' : 'var(--fg)';
   }
   function wpage() { return Math.min(W.imgs.length, Math.floor(W.taps.length / 2) + 1); }     // page being played now
   function wupdate() {
@@ -1096,7 +1100,7 @@
   $('wabort').onclick = function () { var m = $('wmedia'); W.taps = []; if (W.mic) { W.frames.length = 0; W.rms.length = 0; W.ex.len = 0; } else if (W.capture) { $('wstat').textContent = 'この形式は、いったん閉じてもう一度やり直してください。'; } else { m.currentTime = 0; m.play(); $('wplay').textContent = '⏸ 一時停止'; } wupdate(); };
   window.__wizSet = function (t) { if (W) { W.taps = t; wupdate(); } };
   $('wdone').onclick = function () {
-    $('wlevelbox').hidden = true; var m = $('wmedia'); m.pause(); if (W.stream) { W.stream.getTracks().forEach(function (t) { t.stop(); }); } wshow('wbusy'); $('wbusym').textContent = '楽譜と音を結び付けています…';
+    $('wlevelbox').hidden = true; lvAvg = lvFloor = lvN = 0; var m = $('wmedia'); m.pause(); if (W.stream) { W.stream.getTracks().forEach(function (t) { t.stop(); }); } wshow('wbusy'); $('wbusym').textContent = '楽譜と音を結び付けています…';
     setTimeout(function () {
       try {
         var marks = [], k; for (k = 0; k < W.imgs.length - 1; k++) marks.push({ lastBar: W.taps[2 * k], next: W.taps[2 * k + 1] });
