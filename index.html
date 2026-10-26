@@ -127,6 +127,8 @@
       <small>選んだ順がページの順番になります。順番が違うときは、いったん「×」で消して選び直してください。</small>
       <div><button type="button" id="wpickaud">② お手本の録音または動画を選ぶ</button><input type="file" id="waud" accept="audio/*,video/*,.m4a,.mp3,.wav,.mp4,.mov" hidden></div>
       <div id="waudinfo"><small>まだ選んでいません</small></div>
+      <div><button type="button" id="wmic">②' または：別の機器（iPhone の YouTube など）で流した演奏を、マイクで聞かせる</button></div>
+      <small>YouTube などの音は、直接は取り込めません。別の機器で流して、この iPad のマイクで聞かせてください（静かな場所で、スピーカーを近づけます）。</small>
       <div class="wrow"><button type="button" id="wnext" disabled>③ 再生して、めくる場所に印を付ける</button><button type="button" id="wcancel">やめる</button></div>
       <div id="wsetmsg" style="color:var(--warn)"></div>
     </div>
@@ -952,8 +954,8 @@
     $('wtitle').value = ''; $('wthumbs').innerHTML = ''; $('waudinfo').innerHTML = '<small>まだ選んでいません</small>'; $('wsetmsg').textContent = ''; $('wnext').disabled = true;
     $('wiz').hidden = false; wshow('wsetup'); det.open = false;
   }
-  function wclose() { try { var m = $('wmedia'); m.pause(); m.removeAttribute('src'); m.load(); } catch (e) {} if (W && W.ctx) { try { W.ctx.close(); } catch (e) {} } W = null; $('wiz').hidden = true; }
-  function wcheck() { $('wnext').disabled = !(W.imgs.length >= 2 && W.file); }
+  function wclose() { if (W && W.stream) { try { W.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} } try { var m = $('wmedia'); m.pause(); m.removeAttribute('src'); m.load(); } catch (e) {} if (W && W.ctx) { try { W.ctx.close(); } catch (e) {} } W = null; $('wiz').hidden = true; }
+  function wcheck() { $('wnext').disabled = !(W.imgs.length >= 2 && W.file); $('wmic').disabled = W.imgs.length < 2; }
   function wthumbs() {
     var box = $('wthumbs'); box.innerHTML = '';
     W.imgs.forEach(function (im, i) {
@@ -1014,7 +1016,24 @@
     var f = this.files[0]; this.value = ''; if (!f) return; W.file = f; wcheck();
     wanalyze(f).then(wcheck);
   };
+  $('wmic').onclick = function () {
+    if (W.imgs.length < 2) return;
+    W.mic = true; W.file = null; W.marks = []; W.taps = []; W.frames = []; W.rms = []; wshow('wtapview');
+    ['wplay', 'wback', 'wrate'].forEach(function (k) { $(k).hidden = true; });
+    var AC = window.AudioContext || window.webkitAudioContext; W.ctx = new AC(); if (W.ctx.resume) W.ctx.resume();
+    var ex = new AutoPage.ChromaExtractor(W.ctx.sampleRate); W.ex = ex; W.sr = W.ctx.sampleRate;
+    W.now = function () { return W.frames.length ? ((W.frames.length - 1) * ex.hop + ex.nfft) / W.sr : 0; };
+    $('wstat').textContent = 'マイクを準備しています…'; wupdate();
+    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } }).then(function (st) {
+      W.stream = st; var ms = W.ctx.createMediaStreamSource(st), sink = W.ctx.createGain(); sink.gain.value = 0; sink.connect(W.ctx.destination);
+      var feed = function (c) { if (!W) return; var fr = ex.feed(c); for (var q = 0; q < fr.length; q++) { W.frames.push(fr[q].chroma); W.rms.push(fr[q].rms); } };
+      var mk = W.ctx.audioWorklet ? W.ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([workletCode], { type: 'application/javascript' }))).then(function () { var nd = new AudioWorkletNode(W.ctx, 'tap'); nd.port.onmessage = function (e) { feed(e.data); }; ms.connect(nd); nd.connect(sink); })
+        : Promise.resolve().then(function () { var sp = W.ctx.createScriptProcessor(2048, 1, 1); sp.onaudioprocess = function (e) { feed(new Float32Array(e.inputBuffer.getChannelData(0))); }; ms.connect(sp); sp.connect(sink); });
+      return mk;
+    }).then(function () { W.micOn = true; wupdate(); }).catch(function (e) { $('wstat').textContent = 'マイクを使えません。Safari の設定でマイクを許可してください。'; });
+  };
   $('wnext').onclick = function () {
+    W.mic = false; ['wplay', 'wback', 'wrate'].forEach(function (k) { $(k).hidden = false; });
     if (!W.ready) { $('wsetmsg').textContent = '録音の解析が終わるまで、少しお待ちください。'; return; }
     W.marks = []; W.taps = []; W.capFrames = []; wshow('wtapview');
     var m = $('wmedia'); m.src = URL.createObjectURL(W.file); m.playbackRate = 1; W.rate = 1; $('wrate').textContent = 'ゆっくり再生: オフ'; $('wrate').hidden = W.capture;
@@ -1025,7 +1044,7 @@
       var AC = window.AudioContext || window.webkitAudioContext; W.ctx = new AC(); if (W.ctx.resume) W.ctx.resume();
       var ms = W.ctx.createMediaElementSource(m); ms.connect(W.ctx.destination); var ex = new AutoPage.ChromaExtractor(W.ctx.sampleRate); W.ex = ex; W.sr = W.ctx.sampleRate; W.frames = []; W.rms = [];
       var sink = W.ctx.createGain(); sink.gain.value = 0; sink.connect(W.ctx.destination);
-      var feed = function (c) { var fr = ex.feed(c); for (var q = 0; q < fr.length; q++) { W.frames.push(fr[q].chroma); W.rms.push(fr[q].rms); } };
+      var feed = function (c) { if (!W) return; var fr = ex.feed(c); for (var q = 0; q < fr.length; q++) { W.frames.push(fr[q].chroma); W.rms.push(fr[q].rms); } };
       var mk = W.ctx.audioWorklet ? W.ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([workletCode], { type: 'application/javascript' }))).then(function () { var nd = new AudioWorkletNode(W.ctx, 'tap'); nd.port.onmessage = function (e) { feed(e.data); }; ms.connect(nd); nd.connect(sink); })
         : Promise.resolve().then(function () { var sp = W.ctx.createScriptProcessor(2048, 1, 1); sp.onaudioprocess = function (e) { feed(new Float32Array(e.inputBuffer.getChannelData(0))); }; ms.connect(sp); sp.connect(sink); });
       mk.then(go);
@@ -1041,24 +1060,25 @@
     if (done) { t.disabled = true; t.textContent = '最後のページです'; $('wstat').textContent = '印はすべて付きました。「できた」を押してください。'; }
     else if (k % 2 === 0) { t.disabled = false; t.textContent = '最後の小節が始まった'; $('wstat').textContent = p + ' ページ目：この ページの「最後の小節」が始まる瞬間にタップ'; }
     else { t.disabled = false; t.textContent = '次のページが始まった'; $('wstat').textContent = p + ' ページ目：「次のページ」の最初の音が鳴る瞬間にタップ'; }
+    if (W.mic) { $('wdone').disabled = !done; if (!W.micOn && !done) { $('wstat').textContent = 'マイクを準備しています…'; } else if (!done) $('wstat').textContent = '● 録音中。別の機器で演奏を流してください。 ' + $('wstat').textContent; if (done) $('wstat').textContent = '印はすべて付きました。演奏が終わったら「できた」を押してください。'; $('wundo').disabled = !k; return; }
     $('wdone').disabled = !done || (W.capture && !$('wmedia').ended);
     if (done && W.capture && !$('wmedia').ended) $('wstat').textContent += '（この録音は、最後まで再生が終わるのを待ってください）';
     $('wundo').disabled = !k;
   }
   $('wtap').onclick = function () {
-    var m = $('wmedia'); if (m.paused && !m.ended) return;
-    var t = Math.max(0, m.currentTime - TAP_DELAY * (m.playbackRate || 1)), last = W.taps.length ? W.taps[W.taps.length - 1] : -1;
+    var m = $('wmedia'); if (W.mic) { if (!W.micOn) return; } else if (m.paused && !m.ended) return;
+    var t = Math.max(0, (W.mic ? W.now() : m.currentTime) - TAP_DELAY * (W.mic ? 1 : (m.playbackRate || 1))), last = W.taps.length ? W.taps[W.taps.length - 1] : -1;
     if (t <= last) t = last + 0.05;
     W.taps.push(t); wupdate();
   };
-  $('wundo').onclick = function () { if (!W.taps.length) return; var t = W.taps.pop(), m = $('wmedia'); if (!W.capture) m.currentTime = Math.max(0, t - 6); wupdate(); };
+  $('wundo').onclick = function () { if (!W.taps.length) return; var t = W.taps.pop(), m = $('wmedia'); if (!W.capture && !W.mic) m.currentTime = Math.max(0, t - 6); wupdate(); };
   $('wplay').onclick = function () { var m = $('wmedia'); if (m.paused || m.ended) { m.play(); this.textContent = '⏸ 一時停止'; } else { m.pause(); this.textContent = '▶ 再生'; } };
   $('wback').onclick = function () { var m = $('wmedia'); if (!W.capture) m.currentTime = Math.max(0, m.currentTime - 10); };
   $('wrate').onclick = function () { var m = $('wmedia'); W.rate = W.rate === 1 ? 0.75 : 1; m.playbackRate = W.rate; this.textContent = 'ゆっくり再生: ' + (W.rate === 1 ? 'オフ' : '0.75倍'); };
-  $('wabort').onclick = function () { var m = $('wmedia'); W.taps = []; if (W.capture) { $('wstat').textContent = 'この形式は、いったん閉じてもう一度やり直してください。'; } else { m.currentTime = 0; m.play(); $('wplay').textContent = '⏸ 一時停止'; } wupdate(); };
+  $('wabort').onclick = function () { var m = $('wmedia'); W.taps = []; if (W.mic) { W.frames.length = 0; W.rms.length = 0; W.ex.len = 0; } else if (W.capture) { $('wstat').textContent = 'この形式は、いったん閉じてもう一度やり直してください。'; } else { m.currentTime = 0; m.play(); $('wplay').textContent = '⏸ 一時停止'; } wupdate(); };
   window.__wizSet = function (t) { if (W) { W.taps = t; wupdate(); } };
   $('wdone').onclick = function () {
-    var m = $('wmedia'); m.pause(); wshow('wbusy'); $('wbusym').textContent = '楽譜と音を結び付けています…';
+    var m = $('wmedia'); m.pause(); if (W.stream) { W.stream.getTracks().forEach(function (t) { t.stop(); }); } wshow('wbusy'); $('wbusym').textContent = '楽譜と音を結び付けています…';
     setTimeout(function () {
       try {
         var marks = [], k; for (k = 0; k < W.imgs.length - 1; k++) marks.push({ lastBar: W.taps[2 * k], next: W.taps[2 * k + 1] });
