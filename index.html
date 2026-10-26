@@ -45,14 +45,36 @@
   details { position: relative; }
   summary { list-style: none; display: grid; place-items: center; min-height: 48px; padding: 0 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); cursor: pointer; }
   summary::-webkit-details-marker { display: none; }
-  .settings { position: absolute; right: 0; bottom: 58px; width: min(86vw, 360px); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 14px; z-index: 5; box-shadow: 0 8px 28px rgba(0,0,0,.4); }
-  .settings { padding-top: 40px; }
+  .settings { position: fixed; right: max(10px, env(safe-area-inset-right)); bottom: calc(68px + env(safe-area-inset-bottom)); width: min(calc(100vw - 20px), 380px); max-height: calc(100vh - 100px); max-height: calc(100dvh - 100px); overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 14px; z-index: 5; box-shadow: 0 8px 28px rgba(0,0,0,.4); }
+  .settings > * { min-width: 0; max-width: 100%; }
+  .settings select, .settings button:not(.closebtn) { width: 100%; max-width: 100%; white-space: normal; }
+  .settings button:not(.closebtn) { text-align: center; }
+  .settings small { overflow-wrap: anywhere; }
+  .settings { padding-top: 44px; }
   .closebtn { position: absolute; top: 6px; right: 6px; width: 34px; min-height: 34px; padding: 0; border-radius: 17px; font-size: 20px; line-height: 1; display: grid; place-items: center; }
   .settings label { display: grid; gap: 4px; font-size: 14px; }
   .settings label span { display: flex; justify-content: space-between; color: var(--dim); }
   .settings input[type=range] { width: 100%; min-height: 32px; accent-color: var(--accent); }
   .settings small { color: var(--dim); }
   #log { font-size: 12px; color: var(--dim); white-space: pre-line; max-height: 5.6em; overflow: auto; }
+  #wiz { position: fixed; inset: 0; z-index: 20; background: var(--bg); overflow-y: auto; -webkit-overflow-scrolling: touch; padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
+  #wiz [hidden], #wiz[hidden] { display: none !important; }
+  #wiz .box { max-width: 760px; margin: 0 auto; display: grid; gap: 14px; }
+  #wiz h2 { font-size: 18px; margin: 4px 0 0; }
+  #wiz p, #wiz small { margin: 0; color: var(--dim); }
+  #wiz input[type=text] { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-height: 48px; padding: 0 12px; width: 100%; }
+  #wthumbs { display: flex; flex-wrap: wrap; gap: 8px; }
+  #wthumbs figure { margin: 0; position: relative; width: 74px; }
+  #wthumbs img { width: 74px; height: 100px; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); background: #fff; display: block; }
+  #wthumbs figcaption { text-align: center; font-size: 12px; color: var(--dim); }
+  #wthumbs button { position: absolute; top: -6px; right: -6px; min-height: 26px; width: 26px; padding: 0; border-radius: 13px; font-size: 14px; }
+  #wtapview, #wsetup { display: grid; gap: 10px; }
+  #wpageimg { width: 100%; max-height: 52vh; object-fit: contain; background: #0d0e11; border-radius: 8px; border: 1px solid var(--line); }
+  .wrow { display: flex; flex-wrap: wrap; gap: 10px; }
+  .wrow > button { flex: 1; min-width: 140px; }
+  #wtap { background: var(--accent); color: #231a07; border-color: transparent; font-weight: 700; min-height: 84px; font-size: 20px; width: 100%; }
+  #wtap[disabled] { opacity: .5; }
+  #wstat { font-size: 15px; color: var(--fg); }
   @media (max-width: 560px) { .meter { display: none; } #go { flex: 1; } }
   @media (prefers-reduced-motion: reduce) { #preview { transition: none; } }
 </style>
@@ -74,8 +96,8 @@
   <button id="next" aria-label="次のページ">次 ▶</button>
   <select id="startbar" aria-label="弾き始める小節"></select>
   <span class="spacer"></span>
-  <label style="color:var(--dim);font-size:13px"><input type="file" id="file" accept="audio/*" hidden><button id="filebtn" type="button">録音で試す</button></label>
-  <input type="file" id="score" accept=".json,application/json" hidden><button id="openbtn" type="button">楽譜を開く</button>
+  <label style="color:var(--dim);font-size:13px"><input type="file" id="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.mp4,.mov" hidden><button id="filebtn" type="button">録音で試す</button></label>
+  <input type="file" id="score" accept=".json,application/json" hidden><button id="openbtn" type="button">楽譜を開く</button><button id="newbtn" type="button">曲を作る</button>
   <details><summary>設定</summary>
     <div class="settings">
       <button type="button" class="closebtn" id="closesettings" aria-label="設定を閉じる">×</button>
@@ -94,6 +116,33 @@
   </details>
 </footer>
 
+<div id="wiz" hidden>
+  <div class="box">
+    <div id="wsetup" style="gap:14px">
+      <h2>お手本の録音から曲を作る</h2>
+      <p>楽譜の写真と、お手本にする録音（どなたの演奏でもOK。動画でも構いません）を選びます。次の画面で録音を聞きながら、ページをめくる場所をタップして印を付けます。</p>
+      <input type="text" id="wtitle" placeholder="曲の名前（例: ショパン バラード1番）" maxlength="60">
+      <div><button type="button" id="wpickimg">① 楽譜の写真を選ぶ（全ページ）</button><input type="file" id="wimgs" accept="image/*" multiple hidden></div>
+      <div id="wthumbs"></div>
+      <small>選んだ順がページの順番になります。順番が違うときは、いったん「×」で消して選び直してください。</small>
+      <div><button type="button" id="wpickaud">② お手本の録音または動画を選ぶ</button><input type="file" id="waud" accept="audio/*,video/*,.m4a,.mp3,.wav,.mp4,.mov" hidden></div>
+      <div id="waudinfo"><small>まだ選んでいません</small></div>
+      <div class="wrow"><button type="button" id="wnext" disabled>③ 再生して、めくる場所に印を付ける</button><button type="button" id="wcancel">やめる</button></div>
+      <div id="wsetmsg" style="color:var(--warn)"></div>
+    </div>
+    <div id="wtapview" hidden>
+      <h2 id="wh">印を付けます</h2>
+      <div id="wstat"></div>
+      <img id="wpageimg" alt="楽譜のページ">
+      <button type="button" id="wtap">タップ</button>
+      <div class="wrow"><button type="button" id="wplay">⏸ 一時停止</button><button type="button" id="wback">⟲ 10秒戻る</button><button type="button" id="wundo">一つ取り消す</button><button type="button" id="wrate">ゆっくり再生: オフ</button></div>
+      <div class="wrow"><button type="button" id="wdone" disabled>できた（曲を作る）</button><button type="button" id="wabort">最初からやり直す</button></div>
+      <small>ページの最後の小節が始まる瞬間と、次のページの最初の音が鳴る瞬間にタップします。遅れても少しなら自動で補正します。まちがえたら「一つ取り消す」。</small>
+      <video id="wmedia" playsinline preload="auto" style="width:2px;height:2px;opacity:0;position:absolute"></video>
+    </div>
+    <div id="wbusy" hidden><h2 id="wbusyt">解析しています…</h2><p id="wbusym"></p></div>
+  </div>
+</div>
 <script>
 /* Score follower + page-turn controller (port of audio.py / tracker.py).  Pure JavaScript, no DOM:
    works in the browser (window.AutoPage) and in Node (module.exports) so that it can be tested against the Python version. */
@@ -519,6 +568,133 @@
 
 </script>
 <script>
+/* Songs made on the iPad itself (no MusicXML): page photos + a reference recording + the moments where the pages turn.
+   - findFirstBar(): finds the first bar of a page photo (for the small "next page" popup)
+   - buildSong():    turns the reference recording's chroma + the tapped moments into a package that core.js can follow
+   Pure JavaScript; findFirstBar needs a canvas-like source (HTMLImageElement / ImageBitmap + document). */
+(function (root) {
+  'use strict';
+
+  /* ---------------------------------------------------------------- first bar of a page photo */
+  function toGray(img, maxW) {
+    var w0 = img.naturalWidth || img.width, h0 = img.naturalHeight || img.height, s = Math.min(1, maxW / w0), w = Math.max(1, Math.round(w0 * s)), h = Math.max(1, Math.round(h0 * s));
+    var c = document.createElement('canvas'); c.width = w; c.height = h; var g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0, w, h);
+    var d = g.getImageData(0, 0, w, h).data, gray = new Float32Array(w * h);
+    for (var i = 0, j = 0; i < d.length; i += 4, j++) gray[j] = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    return { gray: gray, w: w, h: h, s: s };
+  }
+  function darkMask(gr) {                           // local threshold: dark = clearly darker than the surrounding paper (uneven light, shadows)
+    var w = gr.w, h = gr.h, g = gr.gray, ii = new Float64Array((w + 1) * (h + 1)), x, y;
+    for (y = 0; y < h; y++) { var row = 0; for (x = 0; x < w; x++) { row += g[y * w + x]; ii[(y + 1) * (w + 1) + x + 1] = ii[y * (w + 1) + x + 1] + row; } }
+    var r = Math.max(8, Math.round(w / 40)), m = new Uint8Array(w * h);
+    for (y = 0; y < h; y++) {
+      var y0 = Math.max(0, y - r), y1 = Math.min(h, y + r + 1);
+      for (x = 0; x < w; x++) {
+        var x0 = Math.max(0, x - r), x1 = Math.min(w, x + r + 1);
+        var sum = ii[y1 * (w + 1) + x1] - ii[y0 * (w + 1) + x1] - ii[y1 * (w + 1) + x0] + ii[y0 * (w + 1) + x0], mean = sum / ((x1 - x0) * (y1 - y0));
+        m[y * w + x] = g[y * w + x] < mean - 28 ? 1 : 0;
+      }
+    }
+    return m;
+  }
+  function runs(arr, thr) {                         // consecutive indices with arr[i] >= thr  ->  [[start, end], ...]
+    var out = [], a = -1;
+    for (var i = 0; i < arr.length; i++) { if (arr[i] >= thr) { if (a < 0) a = i; } else if (a >= 0) { out.push([a, i - 1]); a = -1; } }
+    if (a >= 0) out.push([a, arr.length - 1]);
+    return out;
+  }
+  // returns {x0,x1,y0,y1} in the picture's own pixels, or null
+  function findFirstBar(img) {
+    var gr = toGray(img, 900), w = gr.w, h = gr.h, m = darkMask(gr), x, y;
+    var lx0 = Math.round(w * 0.12), lx1 = Math.round(w * 0.88), rowFrac = new Float32Array(h);
+    for (y = 0; y < h; y++) { var c = 0; for (x = lx0; x < lx1; x++) c += m[y * w + x]; rowFrac[y] = c / (lx1 - lx0); }
+    var sorted = Array.prototype.slice.call(rowFrac).sort(function (a, b) { return a - b; }), p99 = sorted[Math.floor(h * 0.99)] || 0.3;
+    var thr = Math.max(0.22, 0.45 * p99), lines = runs(rowFrac, thr).map(function (r) { return (r[0] + r[1]) / 2; });
+    // five lines in a row (about the same distance) = one staff
+    var staves = [], i = 0;
+    while (i + 4 < lines.length) {
+      var d = [lines[i + 1] - lines[i], lines[i + 2] - lines[i + 1], lines[i + 3] - lines[i + 2], lines[i + 4] - lines[i + 3]], md = (d[0] + d[1] + d[2] + d[3]) / 4;
+      var ok = md > 3 && d.every(function (v) { return Math.abs(v - md) < 0.35 * md; });
+      if (ok) { staves.push({ top: lines[i], bot: lines[i + 4], gap: md }); i += 5; } else i++;
+    }
+    if (!staves.length) return null;
+    var sys = [staves[0]];                          // first system = first staff, plus the one right below it when it is close (piano: two staves)
+    if (staves.length > 1 && staves[1].top - staves[0].bot < 3.2 * (staves[0].bot - staves[0].top)) sys.push(staves[1]);
+    var top = sys[0].top, bot = sys[sys.length - 1].bot, pad = sys[0].gap * 1.8;
+    // vertical lines across the whole system = bar lines (the very first one is the start of the system)
+    var yA = Math.round(top), yB = Math.round(bot), col = new Float32Array(w);
+    for (x = 0; x < w; x++) { var cc = 0; for (y = yA; y <= yB; y++) cc += m[y * w + x]; col[x] = cc / (yB - yA + 1); }
+    var vl = runs(col, 0.82).filter(function (r) { return r[1] - r[0] <= Math.max(6, w * 0.012); }).map(function (r) { return (r[0] + r[1]) / 2; });
+    // staff extent: where the lines start and end horizontally
+    var rowMid = Math.round(top + (sys[0].bot - sys[0].top) / 2), xs = -1, xe = -1;
+    for (x = 0; x < w; x++) { var cnt = 0; for (y = Math.round(top) - 1; y <= Math.round(sys[0].bot) + 1; y++) cnt += m[y * w + x]; if (cnt >= 3) { if (xs < 0) xs = x; xe = x; } }
+    if (xs < 0) return null;
+    var width = xe - xs, startLine = vl.length ? vl[0] : xs, first = null;
+    for (var k = 0; k < vl.length; k++) { if (vl[k] - startLine > Math.max(0.12 * width, 6 * sys[0].gap)) { first = vl[k]; break; } }
+    if (first === null) first = Math.min(xe, xs + 0.3 * width);
+    var s = gr.s, bw = first - xs, sh = bot - top;
+    // sanity: a first bar is a few staff-heights wide and not wider than ~45% of the page; otherwise use the top-left of the staff
+    if (bw < 3 * sh * 0.5 || bw > 0.45 * w) { first = xs + Math.min(0.32 * (xe - xs), 0.4 * w); }
+    return { x0: Math.max(0, (xs - 4) / s), x1: (first + 3) / s, y0: Math.max(0, (top - pad) / s), y1: (bot + pad) / s };
+  }
+  // never fails: when nothing is found, the top-left corner of the page
+  function firstBarOrCorner(img) {
+    var W = img.naturalWidth || img.width, H = img.naturalHeight || img.height, r = null;
+    try { r = findFirstBar(img); } catch (e) { r = null; }
+    if (r && r.x1 - r.x0 > 0.08 * W && r.y1 - r.y0 > 0.03 * H && r.y0 < 0.6 * H && r.x1 - r.x0 < 0.6 * W) return r;
+    return { x0: 0.04 * W, x1: 0.46 * W, y0: 0.05 * H, y1: 0.22 * H };
+  }
+
+  /* ---------------------------------------------------------------- build a package from a reference recording + tapped moments */
+  // o.frames: array of Float32Array/Float64Array(12) chroma frames of the reference recording (as made by ChromaExtractor)
+  // o.rms:    their loudness;  o.frameSec: seconds per frame;  o.t0: time of the first frame's centre
+  // o.marks:  [{lastBar: sec, next: sec}] for pages 1..n-1 (times in the reference recording, already corrected for the tapping delay)
+  // o.images: data URLs of the pages;  o.sizes: [{w,h}];  o.firstBars: [{x0,x1,y0,y1} or null] per page;  o.title
+  function buildSong(o) {
+    var n = o.images.length, T = o.frames.length, fs = o.frameSec, t0 = o.t0 || 0, endT = t0 + (T - 1) * fs, i, p;
+    if (o.marks.length !== n - 1) throw new Error('ページの数と、めくる場所の数が合いません');
+    var labels = [], barPage = {}, segText = [], lens = [], rects = {}, times = [0];   // times[k] = start (seconds) of pseudo-bar k; page p has up to 3 pieces:
+    for (p = 1; p <= n; p++) {                                                          //   p (the main part), p+"b" (the 2nd-last bar), p+"c" (the last bar)
+      var lbA = 'p' + p;
+      labels.push(lbA); barPage[lbA] = p; segText.push('');
+      if (p > 1) times.push(o.marks[p - 2].next);                                       // a page begins where the previous page's turn mark says
+      if (p < n) {
+        var Sp = p > 1 ? o.marks[p - 2].next : 0, Lp = o.marks[p - 1].lastBar, Np = o.marks[p - 1].next, lenp = Np - Lp;
+        if (!(Lp > Sp && Np > Lp)) throw new Error(p + 'ページのめくる場所が、順番になっていません');
+        var Bp = Lp - lenp;                                                             // "two bars before the end" = one bar length before the last bar starts
+        if (Bp < Sp + 0.5 * lenp) Bp = Sp + 0.5 * (Lp - Sp);                            // very short page: put it in the middle
+        times.push(Bp); times.push(Lp);
+        labels.push(lbA + 'b'); barPage[lbA + 'b'] = p; segText.push('終盤');
+        labels.push(lbA + 'c'); barPage[lbA + 'c'] = p; segText.push('最終');
+        lens.push(lenp);
+      }
+    }
+    times.push(endT + fs);
+    var nB = labels.length, starts = new Float32Array(nB + 1);
+    for (i = 0; i <= nB; i++) starts[i] = times[i];
+    for (i = 1; i <= nB; i++) if (!(starts[i] > starts[i - 1])) starts[i] = starts[i - 1] + 0.01;
+    var R = new Float32Array(T * 12), fb = new Float32Array(T), k = 0;
+    for (i = 0; i < T; i++) {
+      for (var q = 0; q < 12; q++) R[i * 12 + q] = o.frames[i][q];
+      var t = t0 + i * fs; while (k < nB - 1 && t >= starts[k + 1]) k++;
+      fb[i] = k + Math.min(1, Math.max(0, (t - starts[k]) / (starts[k + 1] - starts[k])));
+    }
+    lens.sort(function (a, b) { return a - b; });
+    var barSec = lens.length ? lens[lens.length >> 1] : 3, barFrames = Math.max(10, barSec / fs);
+    for (p = 1; p <= n; p++) { var fbRect = o.firstBars && o.firstBars[p - 1]; if (fbRect) rects['p' + p] = { img: p - 1, x0: fbRect.x0, x1: fbRect.x1, y0: fbRect.y0, y1: fbRect.y1 }; }
+    function b64(f32) { var u = new Uint8Array(f32.buffer, f32.byteOffset, f32.byteLength), s = '', ch = 0x8000; for (var a = 0; a < u.length; a += ch) s += String.fromCharCode.apply(null, u.subarray(a, a + ch)); return btoa(s); }
+    return {
+      kind: 'song', title: o.title || '新しい曲', T: T, chroma: b64(R), frame_bars: b64(fb), bar_start: b64(starts), bar_frames: barFrames,
+      order: labels, bar_page: barPage, images: o.images, sizes: o.sizes, rects: rects, segText: segText, tempo: 100
+    };
+  }
+
+  var API = { findFirstBar: firstBarOrCorner, buildSong: buildSong };
+  if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.Song = API;
+})(typeof window !== 'undefined' ? window : this);
+
+</script>
+<script>
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
@@ -530,6 +706,7 @@
   /* ---------- score pictures ---------- */
   function pageRegion(p) {                       // the part of the picture that holds page p (union of its bars)
     if (pages[p]) return pages[p];
+    if (pkg.kind === 'song') { var sz = pkg.sizes[p - 1]; return (pages[p] = { img: p - 1, x0: 0, y0: 0, x1: sz.w, y1: sz.h }); }
     var r = null;
     pkg.order.forEach(function (lab) {
       if (pkg.bar_page[lab] !== p) return;
@@ -562,12 +739,13 @@
   }
   function showPage(p) { shownPage = p; $('pg').textContent = 'p.' + p; $('msg').hidden = true; drawPage(null, 0); }
 
+  function labText(lab, idx) { return pkg.kind === 'song' ? (pkg.segText[idx] || '●') : lab; }
   function showPreview(label, page) {
     var b = pkg.rects[label]; if (!b || !imgs[b.img]) return;
     var c = $('pvc'), g = c.getContext('2d'), w = b.x1 - b.x0, h = b.y1 - b.y0, cw = 560;
     c.width = cw; c.height = Math.round(cw * h / w); g.fillStyle = '#f4f1e8'; g.fillRect(0, 0, c.width, c.height);
     g.drawImage(imgs[b.img], b.x0, b.y0, w, h, 0, 0, c.width, c.height);
-    $('pvt').textContent = '次のページ p.' + page; $('pvb').textContent = label + ' 小節目';
+    $('pvt').textContent = '次のページ p.' + page; $('pvb').textContent = pkg.kind === 'song' ? '冒頭' : label + ' 小節目';
     $('preview').classList.add('on');
   }
   function hidePreview() { $('preview').classList.remove('on'); }
@@ -576,7 +754,7 @@
   function onEvent(ev) {
     if (ev.kind === 'preview') {
       var run = pager.turner.runs[pager.turner.disp + 1], lab = pkg.order[run[0]];
-      showPreview(lab, ev.page); log('予告: ' + lab + '小節目 (p.' + ev.page + ')');
+      showPreview(lab, ev.page); log('予告: ' + lab + ' (p.' + ev.page + ')');
     } else {
       hidePreview(); showPage(ev.page); log((ev.kind === 'turn' ? 'めくり' : '位置を修正') + ' → p.' + ev.page + ' (' + ev.t.toFixed(1) + 's)');
     }
@@ -611,14 +789,42 @@
   }
   function stop() {
     running = false; if (feeder) { clearInterval(feeder); feeder = null; }
-    try { if (node) node.disconnect(); if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); if (ctx) ctx.close(); if (wake) wake.release(); } catch (e) {}
+    try { if (mediaEl) { mediaEl.pause(); mediaEl.remove(); mediaEl = null; } if (node) node.disconnect(); if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); if (ctx) ctx.close(); if (wake) wake.release(); } catch (e) {}
     node = stream = ctx = wake = null; $('go').textContent = '聞き始める'; $('go').classList.remove('on'); log('止めました');
+  }
+  var mediaEl = null;
+  function showErr(t) { $('msg').hidden = false; $('msg').textContent = t; log(t); }
+  function attachTap(srcNode, feed) {              // feed the raw samples of an audio node to feed()
+    var sink = ctx.createGain(); sink.gain.value = 0; sink.connect(ctx.destination);
+    if (ctx.audioWorklet) {
+      var url = URL.createObjectURL(new Blob([workletCode], { type: 'application/javascript' }));
+      return ctx.audioWorklet.addModule(url).then(function () { var nd = new AudioWorkletNode(ctx, 'tap'); nd.port.onmessage = function (e) { feed(e.data); }; srcNode.connect(nd); nd.connect(sink); return nd; });
+    }
+    var sp = ctx.createScriptProcessor(2048, 1, 1); sp.onaudioprocess = function (e) { feed(new Float32Array(e.inputBuffer.getChannelData(0))); }; srcNode.connect(sp); sp.connect(sink); return Promise.resolve(sp);
+  }
+  function testViaMedia(file) {                    // video files, or anything decodeAudioData refuses: play it with a media element and listen to that
+    makePager();
+    var el = document.createElement('video'); el.playsInline = true; el.setAttribute('playsinline', ''); el.style.cssText = 'position:absolute;width:2px;height:2px;opacity:0'; document.body.appendChild(el);
+    el.src = URL.createObjectURL(file); mediaEl = el;
+    var ms = ctx.createMediaElementSource(el); ms.connect(ctx.destination);
+    return attachTap(ms, function (c) { if (pager) pager.feed(c); }).then(function (nd) {
+      node = nd; running = true; $('go').textContent = '止める'; $('go').classList.add('on');
+      el.onended = function () { setTimeout(stop, 800); };
+      var go = function () { return el.play(); };
+      return go().then(function () { log('録音を再生中（動画/音声）'); $('msg').hidden = true; }).catch(function () {
+        showErr('▶ ここをタップすると再生が始まります'); $('msg').style.cursor = 'pointer';
+        $('msg').onclick = function () { $('msg').onclick = null; $('msg').style.cursor = ''; go().then(function () { $('msg').hidden = true; }).catch(function (e) { showErr('再生できませんでした: ' + (e && e.message || e)); }); };
+      });
+    });
   }
   function testFile(file) {                       // play a recording through the speakers and feed it to the follower in real time
     if (running) stop();
+    if (!pkg) { showErr('先に楽譜を開いてください'); return; }
     var AC = window.AudioContext || window.webkitAudioContext; ctx = new AC(); if (ctx.resume) ctx.resume();
-    file.arrayBuffer().then(function (ab) { return ctx.decodeAudioData(ab); }).then(function (buf) {
-      makePager(); var data = buf.getChannelData(0), pos = 0, t0 = ctx.currentTime, srcn = ctx.createBufferSource();
+    showErr('録音を読み込んでいます…');
+    var decode = function (ab) { return new Promise(function (ok, ng) { var p = ctx.decodeAudioData(ab, ok, ng); if (p && p.then) p.then(ok, ng); }); };
+    file.arrayBuffer().then(decode).then(function (buf) {
+      makePager(); $('msg').hidden = true; var data = buf.getChannelData(0), pos = 0, t0 = ctx.currentTime, srcn = ctx.createBufferSource();
       srcn.buffer = buf; srcn.connect(ctx.destination); srcn.start();
       running = true; $('go').textContent = '止める'; $('go').classList.add('on'); log('録音を再生中 ' + buf.duration.toFixed(0) + ' s');
       feeder = setInterval(function () {
@@ -627,14 +833,16 @@
         if (pos >= data.length) { clearInterval(feeder); feeder = null; }
       }, 30);
       srcn.onended = function () { setTimeout(stop, 800); };
-    }).catch(function (e) { log('読み込めません: ' + e); });
+    }).catch(function () {
+      return testViaMedia(file);
+    }).catch(function (e) { showErr('この録音は読み込めませんでした（' + (e && e.message || e) + '）。音声ファイル（m4a / mp3 / wav）でお試しください。'); });
   }
 
   /* ---------- status loop ---------- */
   function tick() {
     if (pager && running) {
       var L = pager.last, n = pkg.order.length, idx = Math.min(Math.max(Math.floor(L.pos), 0), n - 1), lab = pkg.order[idx];
-      $('bar').textContent = L.silent && pager.n < 12 ? '–' : lab;
+      $('bar').textContent = L.silent && pager.n < 12 ? '–' : labText(lab, idx);
       var m = $('meter'); m.firstElementChild.style.width = Math.min(100, Math.round(Math.sqrt(L.rms || 0) * 220)) + '%';
       m.classList.toggle('lost', !L.silent && L.conf < 0.5);
       drawPage(lab, L.pos - idx);
@@ -734,6 +942,136 @@
     });
   };
 
+  /* ---------- make a song from page photos + a reference recording ---------- */
+  var W = null;                                    // wizard state
+  var TAP_DELAY = 0.35;                            // seconds a person needs to react
+  function wshow(which) { ['wsetup', 'wtapview', 'wbusy'].forEach(function (k) { $(k).hidden = k !== which; }); }
+  function wopen() {
+    if (running) stop();
+    W = { imgs: [], file: null, frames: null, ex: null, sr: 0, capture: false, marks: [], taps: [], rate: 1, ready: false, analyzing: false };
+    $('wtitle').value = ''; $('wthumbs').innerHTML = ''; $('waudinfo').innerHTML = '<small>まだ選んでいません</small>'; $('wsetmsg').textContent = ''; $('wnext').disabled = true;
+    $('wiz').hidden = false; wshow('wsetup'); det.open = false;
+  }
+  function wclose() { try { var m = $('wmedia'); m.pause(); m.removeAttribute('src'); m.load(); } catch (e) {} if (W && W.ctx) { try { W.ctx.close(); } catch (e) {} } W = null; $('wiz').hidden = true; }
+  function wcheck() { $('wnext').disabled = !(W.imgs.length >= 2 && W.file); }
+  function wthumbs() {
+    var box = $('wthumbs'); box.innerHTML = '';
+    W.imgs.forEach(function (im, i) {
+      var f = document.createElement('figure'), g = document.createElement('img'), c = document.createElement('figcaption'), x = document.createElement('button');
+      g.src = im.thumb; c.textContent = (i + 1) + ' ページ'; x.textContent = '×'; x.setAttribute('aria-label', (i + 1) + 'ページ目を消す');
+      x.onclick = function () { W.imgs.splice(i, 1); wthumbs(); wcheck(); };
+      f.appendChild(g); f.appendChild(c); f.appendChild(x); box.appendChild(f);
+    });
+  }
+  function loadPhoto(file) {                       // -> {data: jpeg data URL (<=2000 px), w, h, thumb, rect}
+    return new Promise(function (ok, ng) {
+      var url = URL.createObjectURL(file), im = new Image();
+      im.onload = function () {
+        var w0 = im.naturalWidth, h0 = im.naturalHeight, sc = Math.min(1, 2000 / Math.max(w0, h0)), w = Math.round(w0 * sc), h = Math.round(h0 * sc);
+        var c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(im, 0, 0, w, h);
+        var t = document.createElement('canvas'); t.width = 74; t.height = 100; var tg = t.getContext('2d'); tg.fillStyle = '#fff'; tg.fillRect(0, 0, 74, 100);
+        var ts = Math.min(74 / w, 100 / h); tg.drawImage(c, 0, 0, w * ts, h * ts);
+        var rect = null; try { rect = Song.findFirstBar(c); } catch (e) {}
+        URL.revokeObjectURL(url);
+        ok({ data: c.toDataURL('image/jpeg', 0.85), w: w, h: h, thumb: t.toDataURL('image/jpeg', 0.7), rect: rect });
+      };
+      im.onerror = function () { URL.revokeObjectURL(url); ng(new Error('写真を読めません: ' + file.name)); };
+      im.src = url;
+    });
+  }
+  function wanalyze(file) {                        // decode the recording and compute its chroma (fast); on failure the chroma is captured while playing
+    W.analyzing = true; W.ready = false; W.capture = false; W.frames = null;
+    $('waudinfo').innerHTML = '<small>' + file.name + ' … 解析しています</small>';
+    var AC = window.AudioContext || window.webkitAudioContext, c = new AC();
+    var decode = function (ab) { return new Promise(function (ok, ng) { var p = c.decodeAudioData(ab, ok, ng); if (p && p.then) p.then(ok, ng); }); };
+    return file.arrayBuffer().then(decode).then(function (buf) {
+      var n = buf.length, ch = buf.numberOfChannels, d = buf.getChannelData(0), mono = d;
+      if (ch > 1) { mono = new Float32Array(n); for (var k = 0; k < ch; k++) { var cd = buf.getChannelData(k); for (var i = 0; i < n; i++) mono[i] += cd[i] / ch; } }
+      var ex = new AutoPage.ChromaExtractor(buf.sampleRate), frames = [], rms = [], pos = 0, step = 32768;
+      return new Promise(function (ok) {
+        (function loop() {
+          var t0 = Date.now();
+          while (pos < n && Date.now() - t0 < 60) { var fr = ex.feed(mono.subarray(pos, Math.min(n, pos + step))); for (var q = 0; q < fr.length; q++) { frames.push(fr[q].chroma); rms.push(fr[q].rms); } pos += step; }
+          $('waudinfo').innerHTML = '<small>' + file.name + ' … 解析中 ' + Math.round(100 * Math.min(1, pos / n)) + '%</small>';
+          if (pos < n) setTimeout(loop, 0); else { c.close(); W.frames = frames; W.rms = rms; W.ex = ex; W.sr = buf.sampleRate; W.dur = buf.duration; ok(); }
+        })();
+      });
+    }).then(function () { W.ready = true; W.analyzing = false; $('waudinfo').innerHTML = '<small>' + file.name + '（' + Math.round(W.dur / 60 * 10) / 10 + ' 分）読み込みました ✔</small>'; })
+      .catch(function () { try { c.close(); } catch (e) {} W.capture = true; W.analyzing = false; W.ready = true; $('waudinfo').innerHTML = '<small>' + file.name + ' ✔（この形式は再生しながら取り込みます。最後まで通して再生する必要があります）</small>'; });
+  }
+  $('newbtn').onclick = wopen;
+  $('wcancel').onclick = wclose;
+  $('wpickimg').onclick = function () { $('wimgs').click(); };
+  $('wimgs').onchange = function () {
+    var fs = Array.prototype.slice.call(this.files); this.value = ''; if (!fs.length) return;
+    $('wsetmsg').textContent = '写真を読み込んでいます…';
+    var chain = Promise.resolve();
+    fs.forEach(function (f) { chain = chain.then(function () { return loadPhoto(f).then(function (r) { W.imgs.push(r); wthumbs(); }); }); });
+    chain.then(function () { $('wsetmsg').textContent = ''; wcheck(); }).catch(function (e) { $('wsetmsg').textContent = '' + (e && e.message || e); });
+  };
+  $('wpickaud').onclick = function () { $('waud').click(); };
+  $('waud').onchange = function () {
+    var f = this.files[0]; this.value = ''; if (!f) return; W.file = f; wcheck();
+    wanalyze(f).then(wcheck);
+  };
+  $('wnext').onclick = function () {
+    if (!W.ready) { $('wsetmsg').textContent = '録音の解析が終わるまで、少しお待ちください。'; return; }
+    W.marks = []; W.taps = []; W.capFrames = []; wshow('wtapview');
+    var m = $('wmedia'); m.src = URL.createObjectURL(W.file); m.playbackRate = 1; W.rate = 1; $('wrate').textContent = 'ゆっくり再生: オフ'; $('wrate').hidden = W.capture;
+    wupdate();
+    var begin = function () { return m.play().then(function () { $('wplay').textContent = '⏸ 一時停止'; }); };
+    var go = function () { begin().catch(function (e) { $('wstat').textContent = '▶ 「再生」を押すと始まります'; $('wplay').textContent = '▶ 再生'; }); };
+    if (W.capture) {                                // chroma is taken from what the media element plays
+      var AC = window.AudioContext || window.webkitAudioContext; W.ctx = new AC(); if (W.ctx.resume) W.ctx.resume();
+      var ms = W.ctx.createMediaElementSource(m); ms.connect(W.ctx.destination); var ex = new AutoPage.ChromaExtractor(W.ctx.sampleRate); W.ex = ex; W.sr = W.ctx.sampleRate; W.frames = []; W.rms = [];
+      var sink = W.ctx.createGain(); sink.gain.value = 0; sink.connect(W.ctx.destination);
+      var feed = function (c) { var fr = ex.feed(c); for (var q = 0; q < fr.length; q++) { W.frames.push(fr[q].chroma); W.rms.push(fr[q].rms); } };
+      var mk = W.ctx.audioWorklet ? W.ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([workletCode], { type: 'application/javascript' }))).then(function () { var nd = new AudioWorkletNode(W.ctx, 'tap'); nd.port.onmessage = function (e) { feed(e.data); }; ms.connect(nd); nd.connect(sink); })
+        : Promise.resolve().then(function () { var sp = W.ctx.createScriptProcessor(2048, 1, 1); sp.onaudioprocess = function (e) { feed(new Float32Array(e.inputBuffer.getChannelData(0))); }; ms.connect(sp); sp.connect(sink); });
+      mk.then(go);
+    } else go();
+    m.onended = function () { $('wplay').textContent = '▶ もう一度'; wupdate(); };
+  };
+  function wpage() { return Math.min(W.imgs.length, Math.floor(W.taps.length / 2) + 1); }     // page being played now
+  function wupdate() {
+    if (!W) return;
+    var n = W.imgs.length, k = W.taps.length, p = wpage(), done = k >= 2 * (n - 1);
+    $('wpageimg').src = W.imgs[p - 1].data; $('wh').textContent = 'p.' + p + ' / ' + n;
+    var t = $('wtap');
+    if (done) { t.disabled = true; t.textContent = '最後のページです'; $('wstat').textContent = '印はすべて付きました。「できた」を押してください。'; }
+    else if (k % 2 === 0) { t.disabled = false; t.textContent = '最後の小節が始まった'; $('wstat').textContent = p + ' ページ目：この ページの「最後の小節」が始まる瞬間にタップ'; }
+    else { t.disabled = false; t.textContent = '次のページが始まった'; $('wstat').textContent = p + ' ページ目：「次のページ」の最初の音が鳴る瞬間にタップ'; }
+    $('wdone').disabled = !done || (W.capture && !$('wmedia').ended);
+    if (done && W.capture && !$('wmedia').ended) $('wstat').textContent += '（この録音は、最後まで再生が終わるのを待ってください）';
+    $('wundo').disabled = !k;
+  }
+  $('wtap').onclick = function () {
+    var m = $('wmedia'); if (m.paused && !m.ended) return;
+    var t = Math.max(0, m.currentTime - TAP_DELAY * (m.playbackRate || 1)), last = W.taps.length ? W.taps[W.taps.length - 1] : -1;
+    if (t <= last) t = last + 0.05;
+    W.taps.push(t); wupdate();
+  };
+  $('wundo').onclick = function () { if (!W.taps.length) return; var t = W.taps.pop(), m = $('wmedia'); if (!W.capture) m.currentTime = Math.max(0, t - 6); wupdate(); };
+  $('wplay').onclick = function () { var m = $('wmedia'); if (m.paused || m.ended) { m.play(); this.textContent = '⏸ 一時停止'; } else { m.pause(); this.textContent = '▶ 再生'; } };
+  $('wback').onclick = function () { var m = $('wmedia'); if (!W.capture) m.currentTime = Math.max(0, m.currentTime - 10); };
+  $('wrate').onclick = function () { var m = $('wmedia'); W.rate = W.rate === 1 ? 0.75 : 1; m.playbackRate = W.rate; this.textContent = 'ゆっくり再生: ' + (W.rate === 1 ? 'オフ' : '0.75倍'); };
+  $('wabort').onclick = function () { var m = $('wmedia'); W.taps = []; if (W.capture) { $('wstat').textContent = 'この形式は、いったん閉じてもう一度やり直してください。'; } else { m.currentTime = 0; m.play(); $('wplay').textContent = '⏸ 一時停止'; } wupdate(); };
+  window.__wizSet = function (t) { if (W) { W.taps = t; wupdate(); } };
+  $('wdone').onclick = function () {
+    var m = $('wmedia'); m.pause(); wshow('wbusy'); $('wbusym').textContent = '楽譜と音を結び付けています…';
+    setTimeout(function () {
+      try {
+        var marks = [], k; for (k = 0; k < W.imgs.length - 1; k++) marks.push({ lastBar: W.taps[2 * k], next: W.taps[2 * k + 1] });
+        var ex = W.ex, p = Song.buildSong({
+          frames: W.frames, rms: W.rms, frameSec: ex.hop / W.sr, t0: ex.nfft / 2 / W.sr, marks: marks, title: $('wtitle').value.trim() || '新しい曲',
+          images: W.imgs.map(function (i) { return i.data; }), sizes: W.imgs.map(function (i) { return { w: i.w, h: i.h }; }), firstBars: W.imgs.map(function (i) { return i.rect; })
+        });
+        var text = JSON.stringify(p); wclose(); boot(p, text);
+        $('msg').hidden = false; $('msg').textContent = '曲ができました。「聞き始める」を押して弾いてみてください。'; setTimeout(function () { if (!running) $('msg').hidden = true; }, 5000);
+      } catch (e) { wshow('wtapview'); $('wstat').textContent = '作れませんでした: ' + (e && e.message || e); }
+    }, 50);
+  };
+
   /* ---------- load ---------- */
   var tickOn = false;
   function boot(p, save) {
@@ -741,7 +1079,7 @@
     pkg = p; pages = {}; shownPage = null; pager = null; $('title').textContent = p.title || '譜めくりくん';
     maxPage = Math.max.apply(null, Object.keys(p.bar_page).map(function (k) { return p.bar_page[k]; }));
     var seen = {}, sel = $('startbar'); sel.innerHTML = '';
-    p.order.forEach(function (lab, i) { if (!seen[lab]) { seen[lab] = 1; var o = document.createElement('option'); o.value = i; o.textContent = lab + ' 小節から'; sel.appendChild(o); } });
+    p.order.forEach(function (lab, i) { if (p.kind === 'song' && /[bc]$/.test(lab)) return; if (!seen[lab]) { seen[lab] = 1; var o = document.createElement('option'); o.value = i; o.textContent = p.kind === 'song' ? lab.slice(1) + ' ページの最初から' : lab + ' 小節から'; sel.appendChild(o); } });
     $('msg').hidden = false; $('msg').textContent = '楽譜を読み込んでいます…'; $('bar').textContent = '–'; hidePreview();
     var n = 0; imgs = p.images.map(function (f) { var im = new Image(); im.onload = function () { if (++n === p.images.length) { showPage(p.bar_page[p.order[0]]); $('go').disabled = false; } }; im.src = f; return im; });
     if (save) store.put(save);
