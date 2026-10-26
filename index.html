@@ -63,6 +63,7 @@
   main { touch-action: none; }
   #inkbar { position: absolute; top: 8px; left: 8px; z-index: 3; display: flex; flex-direction: column; gap: 6px; }
   #inkbar button { min-height: 40px; width: 40px; padding: 0; border-radius: 20px; font-size: 18px; line-height: 1; display: grid; place-items: center; background: rgba(31,35,43,.82); color: #fff; border: 2px solid rgba(255,255,255,.35); }
+  #inkbar #inkt { min-height: 56px; width: 56px; border-radius: 28px; }
   #inkbar button.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
   #inkbar button.dot { border-color: rgba(255,255,255,.7); min-height: 32px; width: 32px; }
   #inkbar button.wide { width: auto; min-width: 40px; padding: 0 12px; font-size: 14px; font-weight: 600; white-space: nowrap; }
@@ -71,6 +72,7 @@
   #inkadj label { display: grid; gap: 2px; font-size: 14px; } #inkadj label span { display: flex; justify-content: space-between; }
   #inkadj input[type=range] { width: 100%; min-height: 30px; accent-color: var(--accent); }
   #inkprev { width: 100%; height: 40px; background: #f4f1e8; border-radius: 6px; }
+  button.ib { min-height: 48px; width: 48px; padding: 0; display: grid; place-items: center; }
   #fsbar { position: absolute; left: 10px; bottom: 10px; z-index: 4; display: flex; gap: 8px; }
   #fsbar[hidden] { display: none; }
   #fsbar button { background: rgba(31,35,43,.88); color: #fff; border: 2px solid rgba(255,255,255,.4); min-height: 44px; }
@@ -126,17 +128,14 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v32</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v36</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><span>小節</span><b id="bar">–</b><span id="pg">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;min-width:6.5ch;text-align:right;font-variant-numeric:tabular-nums"></span></div>
 </header>
 <main>
   <canvas id="page"></canvas>
   <div id="inkbar">
-    <button type="button" id="inkt" aria-label="書き込みのオン・オフ">✎</button>
-    <button type="button" id="fsbtn" aria-label="Full screen">⤢</button>
-    <button type="button" id="startreset" aria-label="Start from the beginning"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9.5 12z"/></svg></button>
-    <button type="button" id="vwreset" aria-label="Reset zoom"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    <button type="button" id="inkt" aria-label="書き込みのオン・オフ"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/><path d="M15 5l4 4"/></svg></button>
     <div id="inkopts" hidden>
       <button type="button" class="dot" data-c="#111111" style="background:#111" aria-label="黒"></button>
       <button type="button" class="dot" data-c="#d62828" style="background:#d62828" aria-label="赤"></button>
@@ -147,7 +146,7 @@
       <button type="button" id="inkw" aria-label="太さと濃さ" title="太さと濃さ"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/></svg></button>
       <button type="button" id="inkc" aria-label="Cover with paper colour" title="Cover pencil marks"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.5 3.5l2 2-9 9-3 1 1-3z"/><path d="M5 19c2 1 5 1 6-1"/><rect x="3" y="20" width="18" height="1.5" rx=".7" fill="currentColor"/></svg></button>
       <button type="button" id="inke" aria-label="消しゴム" title="消しゴム"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M8 20h11M5.5 15.5l8-9.5a2 2 0 0 1 3 0l2 2.2a2 2 0 0 1 0 2.6L12 19H8.5a2 2 0 0 1-1.5-.7z"/><path d="M9.5 10.5l5 5.5"/></svg></button>
-      <button type="button" id="inku" aria-label="一つ戻す" title="一つ戻す"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7L4.5 11.5 9 16"/><path d="M4.5 11.5H14a5.5 5.5 0 0 1 0 11h-2" transform="translate(0 -4)"/></svg></button>
+      <button type="button" id="inku" aria-label="一つ戻す" title="一つ戻す"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
       <button type="button" id="inkx" aria-label="このページの書き込みを全部消す" title="このページの書き込みを全部消す"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6"/></svg></button>
     </div>
   </div>
@@ -156,12 +155,13 @@
     <label><span>濃さ <b id="inkav"></b></span><input type="range" id="inkar" min="10" max="100" step="5"></label>
     <canvas id="inkprev" width="220" height="40"></canvas>
   </div>
-  <div id="fsbar" hidden><button type="button" id="fsback" aria-label="Exit full screen">⤡</button><button type="button" id="fsgo">弾き始める</button></div>
+  <div id="fsbar" hidden><button type="button" id="fsback" class="ib" aria-label="Exit full screen"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button><button type="button" id="fsvw" class="ib" aria-label="Reset zoom"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg></button><button type="button" id="fsgo">弾き始める</button><button type="button" id="fsstart" class="ib" aria-label="Start from the beginning"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M4.5 4h2.6v16H4.5zM21 4.5v15L8.6 12z"/></svg></button></div>
   <div id="msg">楽譜を読み込んでいます…</div>
   <div id="preview" aria-live="polite"><div class="cap"><span id="pvt">次のページ</span><span id="pvb"></span></div><canvas id="pvc"></canvas></div>
 </main>
 <footer>
-  <button id="go" disabled>弾き始める</button>
+  <button type="button" id="fsbtn" class="ib" aria-label="Full screen" title="Full screen"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button><button type="button" id="vwreset" class="ib" aria-label="Reset zoom" title="Reset zoom"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg></button>
+  <button id="go" disabled>弾き始める</button><button type="button" id="startreset" class="ib" aria-label="Start from the beginning" title="Start from the beginning"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M4.5 4h2.6v16H4.5zM21 4.5v15L8.6 12z"/></svg></button>
   <span class="spacer"></span>
   <label style="color:var(--dim);font-size:13px"><input type="file" id="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.mp4,.mov" hidden><button id="filebtn" type="button">録音で試す</button></label>
   <input type="file" id="score" accept=".json,application/json" hidden><button id="libbtn" type="button" aria-label="Songs" title="Songs"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z"/><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z"/></svg></button>
@@ -1376,10 +1376,19 @@
     for (var i = 2; i < p.length; i += 2) g.lineTo(v.ox + (p[i] - v.reg.x0) * v.s, v.oy + (p[i + 1] - v.reg.y0) * v.s);
     g.stroke();
   }
+  var scratch = null;
   function drawOne(g, st, v) {
-    g.save(); g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = st.c; g.lineWidth = st.w * v.s;
-    g.globalAlpha = st.a === undefined ? (st.h ? 0.45 : 1) : st.a; if (st.h) g.globalCompositeOperation = 'multiply';
-    strokePath(g, st, v); g.restore();
+    var al = st.a === undefined ? (st.h ? 0.45 : 1) : st.a, lw = st.w * v.s;
+    if (al >= 0.999 || st.p.length < 2) { g.save(); g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = st.c; g.lineWidth = lw; strokePath(g, st, v); g.restore(); return; }
+    // translucent stroke: paint it opaque on a scratch canvas first, then lay it on the page once, so that overlaps inside the stroke never show up as darker dots
+    var p = st.p, x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (var i = 0; i < p.length; i += 2) { var X = v.ox + (p[i] - v.reg.x0) * v.s, Y = v.oy + (p[i + 1] - v.reg.y0) * v.s; if (X < x0) x0 = X; if (X > x1) x1 = X; if (Y < y0) y0 = Y; if (Y > y1) y1 = Y; }
+    var pad = lw / 2 + 2; x0 = Math.max(0, Math.floor(x0 - pad)); y0 = Math.max(0, Math.floor(y0 - pad)); x1 = Math.min(g.canvas.width, Math.ceil(x1 + pad)); y1 = Math.min(g.canvas.height, Math.ceil(y1 + pad));
+    var w = x1 - x0, h = y1 - y0; if (w <= 0 || h <= 0) return;
+    if (!scratch) scratch = document.createElement('canvas'); if (scratch.width < w || scratch.height < h) { scratch.width = Math.max(scratch.width, w); scratch.height = Math.max(scratch.height, h); }
+    var q = scratch.getContext('2d'); q.setTransform(1, 0, 0, 1, 0, 0); q.clearRect(0, 0, scratch.width, scratch.height);
+    q.lineCap = 'round'; q.lineJoin = 'round'; q.strokeStyle = st.c; q.lineWidth = lw; q.translate(-x0, -y0); strokePath(q, st, v); q.setTransform(1, 0, 0, 1, 0, 0);
+    g.save(); g.globalAlpha = al; if (st.h) g.globalCompositeOperation = 'multiply'; g.drawImage(scratch, 0, 0, w, h, x0, y0, w, h); g.restore();
   }
   function drawInk(g, v) { var list = ink.strokes[shownPage]; if (!v || !list) return; for (var i = 0; i < list.length; i++) drawOne(g, list[i], v); }
   function inkPoint(e) {
@@ -1446,11 +1455,13 @@
   $('inkx').onclick = function () { var b = this; if (!clrArm) { b.textContent = '?'; clrArm = setTimeout(function () { clrArm = null; b.textContent = '全消し'; }, 3000); return; } clearTimeout(clrArm); clrArm = null; b.textContent = '全消し'; ink.strokes[shownPage] = []; inkSave(); drawPage(null, 0); };
   inkUI();
   function setFull(on) {
-    document.body.classList.toggle('full', on); $('fsbar').hidden = !on; $('fsbtn').textContent = on ? '⤡' : '⤢';
+    document.body.classList.toggle('full', on); $('fsbar').hidden = !on; 
     setTimeout(function () { drawPage(null, 0); }, 60);
   }
   $('fsbtn').onclick = function () { setFull(!document.body.classList.contains('full')); };
   $('vwreset').onclick = function () { delete adj[shownPage]; viewSave(); drawPage(null, 0); };
+  $('fsvw').onclick = function () { $('vwreset').click(); };
+  $('fsstart').onclick = function () { $('startreset').click(); };
   $('fsback').onclick = function () { setFull(false); };
   $('fsgo').onclick = function () { $('go').click(); };
   new MutationObserver(function () { $('fsgo').textContent = $('go').textContent; $('fsgo').classList.toggle('on', $('go').classList.contains('on')); }).observe($('go'), { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['class'] });
