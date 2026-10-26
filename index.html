@@ -83,7 +83,7 @@
 <header>
   <h1 id="title">譜めくりくん</h1>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
-  <div class="readout" aria-live="off"><span>小節</span><b id="bar">–</b><span id="pg">p.–</span></div>
+  <div class="readout" aria-live="off"><span>小節</span><b id="bar">–</b><span id="pg">p.–</span><span id="cf" title="追従の確かさ"></span></div>
 </header>
 <main>
   <canvas id="page"></canvas>
@@ -125,20 +125,30 @@
       <div><button type="button" id="wpickimg">① 楽譜の写真を選ぶ（全ページ）</button><input type="file" id="wimgs" accept="image/*" multiple hidden></div>
       <div id="wthumbs"></div>
       <small>選んだ順がページの順番になります。順番が違うときは、いったん「×」で消して選び直してください。</small>
-      <div><button type="button" id="wpickaud">② お手本の録音または動画を選ぶ</button><input type="file" id="waud" accept="audio/*,video/*,.m4a,.mp3,.wav,.mp4,.mov" hidden></div>
-      <div id="waudinfo"><small>まだ選んでいません</small></div>
-      <div><button type="button" id="wmic">②' または：別の機器（iPhone の YouTube など）で流した演奏を、マイクで聞かせる</button></div>
-      <small>YouTube などの音は、直接は取り込めません。別の機器で流して、この iPad のマイクで聞かせてください（静かな場所で、スピーカーを近づけます）。</small>
-      <div class="wrow"><button type="button" id="wnext" disabled>③ 再生して、めくる場所に印を付ける</button><button type="button" id="wcancel">やめる</button></div>
+      <h2 style="font-size:16px">② お手本の取り込み方を選びます</h2>
+      <div style="display:grid;gap:10px;border:1px solid var(--line);border-radius:12px;padding:12px">
+        <b>方法A：録音ファイル・動画ファイルを使う</b>
+        <div><button type="button" id="wpickaud">お手本の録音または動画を選ぶ</button><input type="file" id="waud" accept="audio/*,video/*,.m4a,.mp3,.wav,.mp4,.mov" hidden></div>
+        <div id="waudinfo"><small>まだ選んでいません</small></div>
+        <button type="button" id="wnext" disabled>再生して、めくる場所に印を付ける</button>
+      </div>
+      <div style="display:grid;gap:10px;border:1px solid var(--line);border-radius:12px;padding:12px">
+        <b>方法B：別の機器による録音再生、あるいは生演奏をマイクで聞かせる</b>
+        <small>iPhone の YouTube などで流した演奏や、目の前の生演奏を、この iPad のマイクで聞かせて印を付けます。YouTube の音は直接は取り込めないため、別の機器で流してください（静かな場所で、スピーカーを近づけます）。</small>
+        <button type="button" id="wmic">マイクで聞かせて、めくる場所に印を付ける</button>
+      </div>
+      <div class="wrow"><button type="button" id="wcancel">やめる</button></div>
       <div id="wsetmsg" style="color:var(--warn)"></div>
     </div>
     <div id="wtapview" hidden>
       <h2 id="wh">印を付けます</h2>
       <div id="wstat"></div>
+      <div id="wlevelbox" hidden><div class="meter" style="width:100%;height:12px"><i id="wlevel"></i></div><div id="wlevelmsg" style="font-size:14px;margin-top:4px"></div></div>
       <img id="wpageimg" alt="楽譜のページ">
       <button type="button" id="wtap">タップ</button>
       <div class="wrow"><button type="button" id="wplay">⏸ 一時停止</button><button type="button" id="wback">⟲ 10秒戻る</button><button type="button" id="wundo">一つ取り消す</button><button type="button" id="wrate">ゆっくり再生: オフ</button></div>
       <div class="wrow"><button type="button" id="wdone" disabled>できた（曲を作る）</button><button type="button" id="wabort">最初からやり直す</button></div>
+      <small style="color:var(--fg)">💡 最後のページの印を付けたあとも、演奏は最後まで聞かせてください（最後まで流してから「できた」を押すと、終盤の追従が安定します）。</small>
       <small>ページの最後の小節が始まる瞬間と、次のページの最初の音が鳴る瞬間にタップします。遅れても少しなら自動で補正します。まちがえたら「一つ取り消す」。</small>
       <video id="wmedia" playsinline preload="auto" style="width:2px;height:2px;opacity:0;position:absolute"></video>
     </div>
@@ -846,7 +856,7 @@
       var L = pager.last, n = pkg.order.length, idx = Math.min(Math.max(Math.floor(L.pos), 0), n - 1), lab = pkg.order[idx];
       $('bar').textContent = L.silent && pager.n < 12 ? '–' : labText(lab, idx);
       var m = $('meter'); m.firstElementChild.style.width = Math.min(100, Math.round(Math.sqrt(L.rms || 0) * 220)) + '%';
-      m.classList.toggle('lost', !L.silent && L.conf < 0.5);
+      m.classList.toggle('lost', !L.silent && L.conf < 0.5); $('cf').textContent = L.silent ? '' : '追従' + Math.round(100 * Math.max(0, Math.min(1, L.conf))) + '%';
       drawPage(lab, L.pos - idx);
     }
     requestAnimationFrame(tick);
@@ -1026,7 +1036,7 @@
     $('wstat').textContent = 'マイクを準備しています…'; wupdate();
     navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } }).then(function (st) {
       W.stream = st; var ms = W.ctx.createMediaStreamSource(st), sink = W.ctx.createGain(); sink.gain.value = 0; sink.connect(W.ctx.destination);
-      var feed = function (c) { if (!W) return; var fr = ex.feed(c); for (var q = 0; q < fr.length; q++) { W.frames.push(fr[q].chroma); W.rms.push(fr[q].rms); } };
+      var feed = function (c) { if (!W) return; var fr = ex.feed(c); for (var q = 0; q < fr.length; q++) { W.frames.push(fr[q].chroma); W.rms.push(fr[q].rms); wlevel(fr[q].rms); } };
       var mk = W.ctx.audioWorklet ? W.ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([workletCode], { type: 'application/javascript' }))).then(function () { var nd = new AudioWorkletNode(W.ctx, 'tap'); nd.port.onmessage = function (e) { feed(e.data); }; ms.connect(nd); nd.connect(sink); })
         : Promise.resolve().then(function () { var sp = W.ctx.createScriptProcessor(2048, 1, 1); sp.onaudioprocess = function (e) { feed(new Float32Array(e.inputBuffer.getChannelData(0))); }; ms.connect(sp); sp.connect(sink); });
       return mk;
@@ -1051,16 +1061,23 @@
     } else go();
     m.onended = function () { $('wplay').textContent = '▶ もう一度'; wupdate(); };
   };
+  var lvAvg = 0, lvPeak = 0, lvN = 0;
+  function wlevel(r) {                             // loudness of what the microphone hears while the reference is being recorded
+    lvAvg = lvAvg * 0.9 + r * 0.1; lvN++; if (lvN % 8) return;
+    var pct = Math.min(100, Math.round(Math.sqrt(lvAvg) * 220)); $('wlevelbox').hidden = false; $('wlevel').style.width = pct + '%';
+    $('wlevelmsg').textContent = pct < 10 ? '⚠ 音がほとんど聞こえていません。iPhone のスピーカーを iPad のマイクに近づけ、音量を上げてください。' : pct < 22 ? '音が少し小さいです。もう少し近づけると安心です。' : '音は十分に聞こえています ✔';
+    $('wlevelmsg').style.color = pct < 10 ? 'var(--warn)' : 'var(--fg)';
+  }
   function wpage() { return Math.min(W.imgs.length, Math.floor(W.taps.length / 2) + 1); }     // page being played now
   function wupdate() {
     if (!W) return;
     var n = W.imgs.length, k = W.taps.length, p = wpage(), done = k >= 2 * (n - 1);
     $('wpageimg').src = W.imgs[p - 1].data; $('wh').textContent = 'p.' + p + ' / ' + n;
     var t = $('wtap');
-    if (done) { t.disabled = true; t.textContent = '最後のページです'; $('wstat').textContent = '印はすべて付きました。「できた」を押してください。'; }
+    if (done) { t.disabled = true; t.textContent = '最後のページです'; $('wstat').textContent = '印はすべて付きました。演奏を最後まで聞かせてから「できた」を押してください。'; }
     else if (k % 2 === 0) { t.disabled = false; t.textContent = '最後の小節が始まった'; $('wstat').textContent = p + ' ページ目：この ページの「最後の小節」が始まる瞬間にタップ'; }
     else { t.disabled = false; t.textContent = '次のページが始まった'; $('wstat').textContent = p + ' ページ目：「次のページ」の最初の音が鳴る瞬間にタップ'; }
-    if (W.mic) { $('wdone').disabled = !done; if (!W.micOn && !done) { $('wstat').textContent = 'マイクを準備しています…'; } else if (!done) $('wstat').textContent = '● 録音中。別の機器で演奏を流してください。 ' + $('wstat').textContent; if (done) $('wstat').textContent = '印はすべて付きました。演奏が終わったら「できた」を押してください。'; $('wundo').disabled = !k; return; }
+    if (W.mic) { $('wdone').disabled = !done; if (!W.micOn && !done) { $('wstat').textContent = 'マイクを準備しています…'; } else if (!done) $('wstat').textContent = '● 録音中。別の機器で演奏を流してください。 ' + $('wstat').textContent; if (done) $('wstat').textContent = '印はすべて付きました。演奏を最後まで聞かせてから「できた」を押してください。'; $('wundo').disabled = !k; return; }
     $('wdone').disabled = !done || (W.capture && !$('wmedia').ended);
     if (done && W.capture && !$('wmedia').ended) $('wstat').textContent += '（この録音は、最後まで再生が終わるのを待ってください）';
     $('wundo').disabled = !k;
@@ -1078,7 +1095,7 @@
   $('wabort').onclick = function () { var m = $('wmedia'); W.taps = []; if (W.mic) { W.frames.length = 0; W.rms.length = 0; W.ex.len = 0; } else if (W.capture) { $('wstat').textContent = 'この形式は、いったん閉じてもう一度やり直してください。'; } else { m.currentTime = 0; m.play(); $('wplay').textContent = '⏸ 一時停止'; } wupdate(); };
   window.__wizSet = function (t) { if (W) { W.taps = t; wupdate(); } };
   $('wdone').onclick = function () {
-    var m = $('wmedia'); m.pause(); if (W.stream) { W.stream.getTracks().forEach(function (t) { t.stop(); }); } wshow('wbusy'); $('wbusym').textContent = '楽譜と音を結び付けています…';
+    $('wlevelbox').hidden = true; var m = $('wmedia'); m.pause(); if (W.stream) { W.stream.getTracks().forEach(function (t) { t.stop(); }); } wshow('wbusy'); $('wbusym').textContent = '楽譜と音を結び付けています…';
     setTimeout(function () {
       try {
         var marks = [], k; for (k = 0; k < W.imgs.length - 1; k++) marks.push({ lastBar: W.taps[2 * k], next: W.taps[2 * k + 1] });
