@@ -126,7 +126,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v30</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v32</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><span>小節</span><b id="bar">–</b><span id="pg">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;min-width:6.5ch;text-align:right;font-variant-numeric:tabular-nums"></span></div>
 </header>
@@ -900,7 +900,10 @@
     var mk = startPos.mark; if (mk && mk.page === shownPage) {                      // the flag: "start here"
       var fx = ox + (mk.x - reg.x0) * s, fy = oy + (mk.y - reg.y0) * s, u = d;
       g.save(); g.lineJoin = 'round'; g.beginPath(); g.moveTo(fx, fy); g.lineTo(fx, fy - 34 * u); g.lineTo(fx + 22 * u, fy - 27 * u); g.lineTo(fx, fy - 20 * u);
-      g.strokeStyle = '#fff'; g.lineWidth = 6 * u; g.stroke(); g.strokeStyle = '#15803d'; g.fillStyle = '#16a34a'; g.lineWidth = 2.6 * u; g.stroke(); g.fill(); g.restore();
+      g.strokeStyle = '#fff'; g.lineWidth = 6 * u; g.stroke(); g.strokeStyle = '#15803d'; g.fillStyle = '#16a34a'; g.lineWidth = 2.6 * u; g.stroke(); g.fill();
+      var bx = fx + 40 * u, by = fy - 42 * u, br = 13 * u; mk.btn = { x: bx, y: by, r: br };                    // the cancel "x" at the flag's upper right
+      g.beginPath(); g.arc(bx, by, br, 0, 7); g.fillStyle = '#fff'; g.fill(); g.lineWidth = 2 * u; g.strokeStyle = '#15803d'; g.stroke();
+      g.beginPath(); g.moveTo(bx - 5 * u, by - 5 * u); g.lineTo(bx + 5 * u, by + 5 * u); g.moveTo(bx + 5 * u, by - 5 * u); g.lineTo(bx - 5 * u, by + 5 * u); g.lineWidth = 2.6 * u; g.lineCap = 'round'; g.strokeStyle = '#15803d'; g.stroke(); g.restore();
     }
   }
   function showPage(p) { shownPage = p; $('pg').textContent = 'p.' + p; $('msg').hidden = true; drawPage(null, 0); }
@@ -995,8 +998,8 @@
     return attachTap(ms, function (c) { if (pager) pager.feed(c); }).then(function (nd) {
       node = nd; running = true; $('go').textContent = '止める'; $('go').classList.add('on');
       el.onended = function () { setTimeout(stop, 800); };
-      var go = function () { return el.play(); };
-      return go().then(function () { log('録音を再生中（動画/音声）'); $('msg').hidden = true; }).catch(function () {
+      var go = function () { return (ctx.resume ? ctx.resume() : Promise.resolve()).catch(function () {}).then(function () { return el.play(); }); };
+      return go().then(function () { if (ctx.state !== 'running') throw new Error('suspended'); log('録音を再生中（動画/音声）'); $('msg').hidden = true; }).catch(function () {
         showErr('▶ ここをタップすると再生が始まります'); $('msg').style.cursor = 'pointer';
         $('msg').onclick = function () { $('msg').onclick = null; $('msg').style.cursor = ''; $('msg').classList.remove('alert'); go().then(function () { $('msg').hidden = true; }).catch(function (e) { showErr('再生できませんでした: ' + (e && e.message || e)); }); };
       });
@@ -1005,12 +1008,15 @@
   function testFile(file) {                       // play a recording through the speakers and feed it to the follower in real time
     if (running) stop();
     if (!pkg) { showErr('先に楽譜を開いてください'); return; }
-    var AC = window.AudioContext || window.webkitAudioContext; ctx = new AC(); if (ctx.resume) ctx.resume();
-    showErr('録音を読み込んでいます…');
+    var AC = window.AudioContext || window.webkitAudioContext; ctx = preCtx && preCtx.state !== 'closed' ? preCtx : new AC(); preCtx = null; if (ctx.resume) ctx.resume();
+    showErr('録音を読み込んでいます…（動画は少し時間がかかります）');
+    var isVid = /^video\//.test(file.type) || /\.(mov|mp4|m4v)$/i.test(file.name || '');
+    if (isVid) { testViaMedia(file).catch(function (e) { showErr('この動画は読み込めませんでした（' + (e && e.message || e) + '）。'); }); return; }
     var decode = function (ab) { return new Promise(function (ok, ng) { var p = ctx.decodeAudioData(ab, ok, ng); if (p && p.then) p.then(ok, ng); }); };
     file.arrayBuffer().then(decode).then(function (buf) {
       makePager(); $('msg').hidden = true; var data = buf.getChannelData(0), pos = 0, t0 = ctx.currentTime, srcn = ctx.createBufferSource();
       srcn.buffer = buf; srcn.connect(ctx.destination); srcn.start();
+      if (ctx.state !== 'running') { showErr('▶ ここをタップすると再生が始まります'); $('msg').style.cursor = 'pointer'; $('msg').onclick = function () { $('msg').onclick = null; $('msg').style.cursor = ''; $('msg').classList.remove('alert'); ctx.resume().then(function () { $('msg').hidden = true; }); }; }
       running = true; $('go').textContent = '止める'; $('go').classList.add('on'); log('録音を再生中 ' + buf.duration.toFixed(0) + ' s');
       feeder = setInterval(function () {
         var upto = Math.min(data.length, Math.floor((ctx.currentTime - t0) * buf.sampleRate));
@@ -1049,13 +1055,15 @@
       if (sx === null || pz) return; var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy; sx = null;
       if (Math.abs(dx) < 14 && Math.abs(dy) < 14 && Date.now() - st < 350 && view) {                       // a tap; two taps close together = "start here"
         var now = Date.now(), cp = cpt(t);
+        if (hitFlagX(cp[0], cp[1], cp[2])) { lastTap = null; clearFlag(); return; }
         if (lastTap && now - lastTap.t < 420 && Math.hypot(cp[0] - lastTap.x, cp[1] - lastTap.y) < 60 * cp[2]) { lastTap = null; setStart((cp[0] - view.ox) / view.s + view.reg.x0, (cp[1] - view.oy) / view.s + view.reg.y0); return; }
         lastTap = { t: now, x: cp[0], y: cp[1] }; return;
       }
       if (Date.now() - st < 900 && Math.abs(dx) > 60 && Math.abs(dx) > 1.6 * Math.abs(dy)) manual(dx < 0 ? 1 : -1);
     }, { passive: true });
     var pz = null, lastTap = null;
-    m.addEventListener('dblclick', function (e) { if (ink.on || !view) return; var cp = cpt(e); setStart((cp[0] - view.ox) / view.s + view.reg.x0, (cp[1] - view.oy) / view.s + view.reg.y0); });
+    m.addEventListener('click', function (e) { if (ink.on || !view) return; var cp = cpt(e); if (hitFlagX(cp[0], cp[1], cp[2])) clearFlag(); });
+    m.addEventListener('dblclick', function (e) { if (ink.on || !view) return; var cp0 = cpt(e); if (hitFlagX(cp0[0], cp0[1], cp0[2])) return; if (ink.on || !view) return; var cp = cpt(e); setStart((cp[0] - view.ox) / view.s + view.reg.x0, (cp[1] - view.oy) / view.s + view.reg.y0); });
     function cpt(t) { var c = $('page'), r = c.getBoundingClientRect(), d = c.width / r.width; return [(t.clientX - r.left) * d, (t.clientY - r.top) * d, d]; }
     m.addEventListener('touchstart', function (e) {
       if (e.touches.length === 2 && view && shownPage != null && e.touches[0].touchType !== 'stylus') {
@@ -1078,7 +1086,8 @@
     else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { manual(-1); e.preventDefault(); }
   });
   $('go').onclick = function () { running ? stop() : start(); };
-  $('filebtn').onclick = function () { $('file').click(); };
+  var preCtx = null;                              // created inside the tap on the button: iOS only lets an AudioContext make sound if it was started by a tap
+  $('filebtn').onclick = function () { try { var AC = window.AudioContext || window.webkitAudioContext; preCtx = new AC(); if (preCtx.resume) preCtx.resume(); } catch (e) { preCtx = null; } $('file').click(); };
   $('file').onchange = function () { if (this.files[0]) testFile(this.files[0]); this.value = ''; };
   $('frac').oninput = function () { $('fracv').textContent = this.value + '%'; if (pager) pager.turner.frac = +this.value / 100; };
   $('prevbars').oninput = function () { $('prevv').textContent = this.value; if (pager) pager.turner.previewBars = +this.value; };
@@ -1340,6 +1349,8 @@
     });
     return best;
   }
+  function hitFlagX(cx, cy, d) { var mk = startPos.mark; if (!mk || mk.page !== shownPage || !mk.btn) return false; return Math.hypot(cx - mk.btn.x, cy - mk.btn.y) < mk.btn.r + 14 * d; }
+  function clearFlag() { startPos = { page: pkg.bar_page[pkg.order[0]], pos: 0, mark: null }; drawPage(null, 0); toast('✕'); }
   function setStart(x, y) {
     if (!pkg || shownPage == null || !view) return;
     var sp = startFromTap(shownPage, x, y); if (sp === null || sp === undefined) return;
