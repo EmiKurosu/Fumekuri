@@ -75,7 +75,7 @@
   #fsbar button { background: rgba(31,35,43,.88); color: #fff; border: 2px solid rgba(255,255,255,.4); min-height: 44px; }
   #fsbar button.on { background: var(--warn); }
   body.full header, body.full footer { display: none; }
-  body.full { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); gap: 0; }
+  body.full { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); gap: 0; }
   body.full main { border-radius: 0; border: 0; }
   #lightbox { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.94); display: grid; grid-template-rows: 1fr auto; padding: 10px; }
   #lightbox[hidden] { display: none; }
@@ -84,6 +84,19 @@
   #lightbox .bar button { min-width: 80px; }
   #inkopts { display: flex; flex-direction: column; gap: 6px; }
   #inkopts[hidden] { display: none; }
+  #lib { position: fixed; inset: 0; z-index: 20; background: var(--bg); overflow-y: auto; padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
+  #lib[hidden] { display: none; }
+  #lib .box { max-width: 760px; margin: 0 auto; display: grid; gap: 14px; padding-top: 40px; }
+  #lib h2 { font-size: 18px; margin: 4px 0 0; } #lib small { color: var(--dim); }
+  #liblist { display: grid; gap: 10px; }
+  .song { display: flex; align-items: center; gap: 12px; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); cursor: pointer; }
+  .song.cur { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+  .song img { width: 56px; height: 74px; object-fit: cover; border-radius: 4px; background: #fff; flex: none; }
+  .song .nm { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .song .sub { color: var(--dim); font-size: 13px; font-weight: 400; }
+  .song button { min-height: 40px; min-width: 44px; padding: 0 8px; display: grid; place-items: center; }
+  .song button.arm { background: #c0392b; color: #fff; }
+  #toast { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); z-index: 30; background: rgba(20,22,27,.94); color: #fff; padding: 12px 20px; border-radius: 12px; font-size: 18px; font-weight: 600; pointer-events: none; }
+  #toast[hidden] { display: none; }
   #wiz { position: fixed; inset: 0; z-index: 20; background: var(--bg); overflow-y: auto; -webkit-overflow-scrolling: touch; padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
   #wiz [hidden], #wiz[hidden] { display: none !important; }
   #wiz .box { padding-top: 40px; max-width: 760px; margin: 0 auto; display: grid; gap: 14px; }
@@ -108,7 +121,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v26</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v28</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><span>小節</span><b id="bar">–</b><span id="pg">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;min-width:6.5ch;text-align:right;font-variant-numeric:tabular-nums"></span></div>
 </header>
@@ -116,7 +129,9 @@
   <canvas id="page"></canvas>
   <div id="inkbar">
     <button type="button" id="inkt" aria-label="書き込みのオン・オフ">✎</button>
-    <button type="button" id="fsbtn" aria-label="楽譜を全画面にする">⤢</button>
+    <button type="button" id="fsbtn" aria-label="Full screen">⤢</button>
+    <button type="button" id="startreset" aria-label="Start from the beginning"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9.5 12z"/></svg></button>
+    <button type="button" id="vwreset" aria-label="Reset zoom"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
     <div id="inkopts" hidden>
       <button type="button" class="dot" data-c="#111111" style="background:#111" aria-label="黒"></button>
       <button type="button" class="dot" data-c="#d62828" style="background:#d62828" aria-label="赤"></button>
@@ -125,6 +140,7 @@
       <button type="button" class="dot" data-c="#facc15" data-h="1" style="background:#facc15" aria-label="蛍光ペン（黄）"></button>
       <button type="button" class="dot" data-c="#fb7185" data-h="1" style="background:#fb7185" aria-label="蛍光ペン（ピンク）"></button>
       <button type="button" id="inkw" aria-label="太さと濃さ" title="太さと濃さ"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/></svg></button>
+      <button type="button" id="inkc" aria-label="Cover with paper colour" title="Cover pencil marks"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.5 3.5l2 2-9 9-3 1 1-3z"/><path d="M5 19c2 1 5 1 6-1"/><rect x="3" y="20" width="18" height="1.5" rx=".7" fill="currentColor"/></svg></button>
       <button type="button" id="inke" aria-label="消しゴム" title="消しゴム"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M8 20h11M5.5 15.5l8-9.5a2 2 0 0 1 3 0l2 2.2a2 2 0 0 1 0 2.6L12 19H8.5a2 2 0 0 1-1.5-.7z"/><path d="M9.5 10.5l5 5.5"/></svg></button>
       <button type="button" id="inku" aria-label="一つ戻す" title="一つ戻す"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7L4.5 11.5 9 16"/><path d="M4.5 11.5H14a5.5 5.5 0 0 1 0 11h-2" transform="translate(0 -4)"/></svg></button>
       <button type="button" id="inkx" aria-label="このページの書き込みを全部消す" title="このページの書き込みを全部消す"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6"/></svg></button>
@@ -141,10 +157,9 @@
 </main>
 <footer>
   <button id="go" disabled>弾き始める</button>
-  <select id="startbar" aria-label="弾き始める小節"></select>
   <span class="spacer"></span>
   <label style="color:var(--dim);font-size:13px"><input type="file" id="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.mp4,.mov" hidden><button id="filebtn" type="button">録音で試す</button></label>
-  <input type="file" id="score" accept=".json,application/json" hidden><button id="openbtn" type="button">楽譜を開く</button><button id="newbtn" type="button">曲を作る</button>
+  <input type="file" id="score" accept=".json,application/json" hidden><button id="libbtn" type="button" aria-label="Songs" title="Songs"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z"/><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z"/></svg></button>
   <details><summary>設定</summary>
     <div class="settings">
       <button type="button" class="closebtn" id="closesettings" aria-label="設定を閉じる">×</button>
@@ -156,13 +171,23 @@
       <button type="button" id="learnbtn" disabled>通して弾いて覚える（上級）</button>
       <button type="button" id="learnfilebtn">録音ファイルから覚える（上級）</button><input type="file" id="learnfile" accept="audio/*" hidden>
       <button type="button" id="learnreset">覚えたテンポを消す</button>
-      <button type="button" id="delscore">保存した楽譜を消す</button>
+      <small>楽譜を指で2回タップすると、そこから弾き始めます（弾いている途中でも、その場所に合わせ直します）。⏮ ボタンで、最初から弾くように戻せます。</small>
       <small>自動でめくれないときは、楽譜を指で左へスワイプすると次のページ、右へスワイプすると前のページへ戻ります。ペダルの信号（→ / ← / PageDown / PageUp）でも手動でめくれます。</small>
       <div id="log"></div>
     </div>
   </details>
 </footer>
 
+<div id="lib" hidden>
+  <button type="button" class="closebtn" id="libclose" aria-label="Close" style="position:fixed;top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));z-index:25">×</button>
+  <div class="box">
+    <h2>曲の一覧</h2>
+    <div id="liblist"></div>
+    <div class="wrow" style="display:flex;gap:10px;flex-wrap:wrap"><button type="button" id="newbtn">＋ 新しい曲を作る</button><button type="button" id="openbtn">ファイルから開く（.json）</button></div>
+    <small>曲は、この iPad の中に保存されます。どこにも送信されません。</small>
+  </div>
+</div>
+<div id="toast" hidden></div>
 <div id="lightbox" hidden><img id="lbimg" alt="楽譜のページ"><div class="bar"><button type="button" id="lbprev">◀ 前</button><span id="lbcap"></span><button type="button" id="lbnext">次 ▶</button><button type="button" id="lbclose">閉じる</button></div></div>
 <div id="wiz" hidden>
   <button type="button" class="closebtn" id="wclosebtn" aria-label="閉じる" style="position:fixed;top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));z-index:25">×</button>
@@ -311,6 +336,10 @@
     var T = this.T; if (frame <= 0) return this.frameBars[0]; if (frame >= T - 1) return this.frameBars[T - 1];
     var i = Math.floor(frame), f = frame - i; return this.frameBars[i] * (1 - f) + this.frameBars[i + 1] * f;
   };
+  Reference.prototype.frameOfBar = function (pos) {          // reference frame of a (fractional) bar position
+    var n = this.nBars, k = Math.min(Math.max(Math.floor(pos), 0), n - 1), f = Math.min(1, Math.max(0, pos - k));
+    return (this.barStart[k] + f * (this.barStart[k + 1] - this.barStart[k])) * (REF_SR / REF_HOP);
+  };
   Reference.prototype.barSeconds = function (pos) {
     var k = Math.min(Math.max(Math.floor(pos), 0), this.nBars - 1); return this.barStart[k + 1] - this.barStart[k];
   };
@@ -407,7 +436,7 @@
     this.rhoF = Math.exp(-1 / ((o.lamFwd || 0.25) * ref.barFrames)); this.rhoB = Math.exp(-1 / ((o.lamBack || 0.5) * ref.barFrames));
     this.W = Math.floor(0.75 * ref.barFrames);
     var T = this.T; this.b = new Float64Array(T); this.nb = new Float64Array(T); this.fw = new Float64Array(T); this.bw = new Float64Array(T);
-    var s = Math.floor((o.startBar || 0) * ref.barFrames);
+    var s = o.startFrame !== undefined ? Math.floor(o.startFrame) : Math.floor((o.startBar || 0) * ref.barFrames);
     for (var i = s; i < Math.min(s + 6, T); i++) this.b[i] = 1 / Math.min(6, T - s);
     this.r = 1; this.hist = []; this.sims = []; this.match = 0; this.conf = 0; this.j = s;
   }
@@ -476,7 +505,7 @@
       this.kern.push({ lo: lo, w: w.map(function (v2) { return v2 / sum; }) });
     }
     this.B = new Float64Array(K * T); this.N = new Float64Array(K * T); this.marg = new Float64Array(T); this.fw = new Float64Array(T); this.bw = new Float64Array(T); this.lik = new Float64Array(T);
-    s = Math.floor((o.startBar || 0) * ref.barFrames); var n0 = Math.min(6, T - s);
+    s = o.startFrame !== undefined ? Math.floor(o.startFrame) : Math.floor((o.startBar || 0) * ref.barFrames); var n0 = Math.min(6, T - s);
     var psum = 0; for (i = 0; i < K; i++) psum += this.prior[i];
     for (i = 0; i < K; i++) for (k = s; k < s + n0; k++) this.B[i * T + k] = this.prior[i] / (psum * n0);
     this.r = 1; this.sims = []; this.match = 0; this.conf = 0; this.j = s; this.rateHist = [];
@@ -574,8 +603,10 @@
     opts = opts || {};
     this.sr = opts.sampleRate; this.ref = new Reference(pkg); if (opts.barSec) this.ref = this.ref.warp(opts.barSec);
     this.ex = new ChromaExtractor(this.sr); this.gate = new SilenceGate();
-    this.al = opts.singleTempo ? new Aligner(this.ref, { startBar: opts.startBar || 0 }) : new MultiAligner(this.ref, Object.assign({ startBar: opts.startBar || 0 }, opts.alignerOpts || {}));
+    var sp = opts.startPos !== undefined ? opts.startPos : (opts.startBar || 0), sf = sp > 0 ? this.ref.frameOfBar(sp) : undefined;       // sp may be fractional (a tapped place in the score)
+    this.al = opts.singleTempo ? new Aligner(this.ref, { startBar: sp, startFrame: sf }) : new MultiAligner(this.ref, Object.assign({ startBar: sp, startFrame: sf }, opts.alignerOpts || {}));
     this.turner = new PageTurner(pkg.order, pkg.bar_page, { frac: opts.frac, leadS: opts.leadS, previewBars: opts.previewBars });
+    this.turner.disp = this.turner.runOf[Math.min(Math.max(Math.floor(sp), 0), pkg.order.length - 1)];
     this.latency = this.ex.nfft / 2 / this.sr + 0.02; this.n = 0; this.onEvent = opts.onEvent || null; this.trace = []; this.prevBarSec = opts.barSec || null; this.nominal = new Reference(pkg);
     this.last = { pos: 0, conf: 0, match: 0, silent: true, t: 0 };
   }
@@ -700,6 +731,54 @@
     if (bw < 3 * sh * 0.5 || bw > 0.45 * w) { first = xs + Math.min(0.32 * (xe - xs), 0.4 * w); }
     return { x0: Math.max(0, (xs - 4) / s), x1: (first + 3) / s, y0: Math.max(0, (top - pad) / s), y1: (bot + pad) / s };
   }
+  // the systems (lines of music) of a page photo: [{y0,y1,x0,x1}] in the picture's own pixels, or null
+  function findSystems(img) {
+    var gr = toGray(img, 900), w = gr.w, h = gr.h, m = darkMask(gr), x, y;
+    var lx0 = Math.round(w * 0.12), lx1 = Math.round(w * 0.88), rowFrac = new Float32Array(h);
+    for (y = 0; y < h; y++) { var c = 0; for (x = lx0; x < lx1; x++) c += m[y * w + x]; rowFrac[y] = c / (lx1 - lx0); }
+    var sorted = Array.prototype.slice.call(rowFrac).sort(function (a, b) { return a - b; }), p99 = sorted[Math.floor(h * 0.99)] || 0.3;
+    var thr = Math.max(0.22, 0.45 * p99), lines = runs(rowFrac, thr).map(function (r) { return (r[0] + r[1]) / 2; }), staves = [], i = 0;
+    while (i + 4 < lines.length) {
+      var d = [lines[i + 1] - lines[i], lines[i + 2] - lines[i + 1], lines[i + 3] - lines[i + 2], lines[i + 4] - lines[i + 3]], md = (d[0] + d[1] + d[2] + d[3]) / 4;
+      if (md > 3 && d.every(function (v) { return Math.abs(v - md) < 0.35 * md; })) { staves.push({ top: lines[i], bot: lines[i + 4], gap: md }); i += 5; } else i++;
+    }
+    if (!staves.length) return null;
+    var systems = [], cur = { top: staves[0].top, bot: staves[0].bot, first: staves[0] };
+    for (i = 1; i < staves.length; i++) {
+      if (staves[i].top - cur.bot < 3.2 * (cur.first.bot - cur.first.top)) cur.bot = staves[i].bot; else { systems.push(cur); cur = { top: staves[i].top, bot: staves[i].bot, first: staves[i] }; }
+    }
+    systems.push(cur);
+    var s = gr.s;
+    return systems.map(function (sy) {
+      var xs = -1, xe = -1;
+      for (x = 0; x < w; x++) { var cnt = 0; for (y = Math.round(sy.first.top) - 1; y <= Math.round(sy.first.bot) + 1; y++) cnt += m[y * w + x]; if (cnt >= 3) { if (xs < 0) xs = x; xe = x; } }
+      if (xs < 0) { xs = Math.round(w * 0.08); xe = Math.round(w * 0.92); }
+      return { y0: (sy.top - sy.first.gap * 2) / s, y1: (sy.bot + sy.first.gap * 2) / s, x0: xs / s, x1: xe / s };
+    });
+  }
+  // maps a tapped place on a page photo to "how far through the page's music" (0..1): reading order, weighted by the amount of ink (notes ~ time)
+  function inkMap(img) {
+    var gr = toGray(img, 900), w = gr.w, h = gr.h, m = darkMask(gr), x, y, row = new Float32Array(h), x0 = Math.round(w * 0.06), x1 = Math.round(w * 0.94);
+    for (y = 0; y < h; y++) { var c = 0; for (x = x0; x < x1; x++) c += m[y * w + x]; row[y] = c; }
+    var sm = new Float32Array(h), k;
+    for (y = 0; y < h; y++) { var a0 = Math.max(0, y - 2), a1 = Math.min(h - 1, y + 2), q = 0; for (k = a0; k <= a1; k++) q += row[k]; sm[y] = q / (a1 - a0 + 1); }
+    var srt = Array.prototype.slice.call(sm).sort(function (a, b) { return a - b; }), thr = Math.max(0.08 * (x1 - x0), 0.28 * (srt[Math.floor(h * 0.97)] || 1)), rs = runs(sm, thr), bands = [];
+    rs.forEach(function (r) { var l = bands[bands.length - 1]; if (l && r[0] - l.y1 < 0.012 * h) l.y1 = r[1]; else bands.push({ y0: r[0], y1: r[1] }); });
+    bands = bands.filter(function (b) { return b.y1 - b.y0 > 0.012 * h; });
+    if (bands.length >= 4 && bands.length % 2 === 0) { var pr = []; for (k = 0; k < bands.length; k += 2) pr.push({ y0: bands[k].y0, y1: bands[k + 1].y1 }); bands = pr; }     // grand staves: treble + bass = one system
+    var total = 0;
+    bands.forEach(function (b) { b.col = new Float32Array(w); b.mass = 0; for (var yy = b.y0; yy <= b.y1; yy++) for (var xx = x0; xx < x1; xx++) if (m[yy * w + xx]) { b.col[xx]++; b.mass++; } b.before = total; total += b.mass; });
+    var s = gr.s;
+    return function (px, py) {
+      if (!bands.length || total <= 0) return null;
+      var ix = px * s, iy = py * s, best = 0, bd = 1e9;
+      bands.forEach(function (b, i) { var d = iy < b.y0 ? b.y0 - iy : iy > b.y1 ? iy - b.y1 : 0; if (d < bd) { bd = d; best = i; } });
+      var b = bands[best], acc = 0, lim = Math.max(0, Math.min(w - 1, Math.round(ix)));
+      for (var xx = 0; xx <= lim; xx++) acc += b.col[xx];
+      return (b.before + (b.mass ? acc : 0)) / total;
+    };
+  }
+  function inkBandCount(img) { return 0; }
   // never fails: when nothing is found, the top-left corner of the page
   function firstBarOrCorner(img) {
     var W = img.naturalWidth || img.width, H = img.naturalHeight || img.height, r = null;
@@ -752,7 +831,7 @@
     };
   }
 
-  var API = { findFirstBar: firstBarOrCorner, buildSong: buildSong };
+  var API = { findFirstBar: firstBarOrCorner, findSystems: findSystems, inkMap: inkMap, buildSong: buildSong };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.Song = API;
 })(typeof window !== 'undefined' ? window : this);
 
@@ -786,18 +865,25 @@
     return d;
   }
   var view = null;                                // how the current page is placed on the canvas
+  var adj = {};                                   // per page: zoom / centre chosen with two fingers {z, cx, cy}
   function drawPage(playBar, playFrac) {
     var c = $('page'), g = c.getContext('2d'), d = fit(c);
     g.fillStyle = '#0d0e11'; g.fillRect(0, 0, c.width, c.height);
     var reg = shownPage != null ? pageRegion(shownPage) : null;
     if (!reg || !imgs[reg.img] || !imgs[reg.img].complete) { view = null; return; }
-    var w = reg.x1 - reg.x0, h = reg.y1 - reg.y0, s = Math.min(c.width / w, c.height / h) * 0.98;
-    var ox = (c.width - w * s) / 2, oy = (c.height - h * s) / 2;
-    view = { s: s, ox: ox, oy: oy, reg: reg };
+    var w = reg.x1 - reg.x0, h = reg.y1 - reg.y0, full = document.body.classList.contains('full'), s0 = Math.min(c.width / w, c.height / h) * (full ? 1 : 0.98);
+    var a = adj[shownPage], s = s0 * (a ? a.z : 1), cxI = a ? a.cx : reg.x0 + w / 2, cyI = a ? a.cy : reg.y0 + h / 2;
+    var ox = c.width / 2 - (cxI - reg.x0) * s, oy = c.height / 2 - (cyI - reg.y0) * s;
+    view = { s: s, s0: s0, ox: ox, oy: oy, reg: reg };
     g.imageSmoothingQuality = 'high';
     g.drawImage(imgs[reg.img], reg.x0, reg.y0, w, h, ox, oy, w * s, h * s);
     var b = playBar != null ? pkg.rects[playBar] : null;
     drawInk(g, view);
+    var mk = startPos.mark; if (mk && mk.page === shownPage) {                      // the flag: "start here"
+      var fx = ox + (mk.x - reg.x0) * s, fy = oy + (mk.y - reg.y0) * s, u = d;
+      g.save(); g.lineJoin = 'round'; g.beginPath(); g.moveTo(fx, fy); g.lineTo(fx, fy - 34 * u); g.lineTo(fx + 22 * u, fy - 27 * u); g.lineTo(fx, fy - 20 * u);
+      g.strokeStyle = '#fff'; g.lineWidth = 6 * u; g.stroke(); g.strokeStyle = '#15803d'; g.fillStyle = '#16a34a'; g.lineWidth = 2.6 * u; g.stroke(); g.fill(); g.restore();
+    }
   }
   function showPage(p) { shownPage = p; $('pg').textContent = 'p.' + p; $('msg').hidden = true; drawPage(null, 0); }
 
@@ -825,9 +911,9 @@
   /* ---------- audio ---------- */
   var workletCode = 'class P extends AudioWorkletProcessor{process(i){var c=i[0]&&i[0][0];if(c)this.port.postMessage(c.slice(0));return true;}}registerProcessor("tap",P);';
   function makePager() {
-    var sb = +$('startbar').value;
-    pager = new AutoPage.AutoPager(pkg, { sampleRate: ctx.sampleRate, startBar: sb, frac: +$('frac').value / 100, previewBars: +$('prevbars').value, barSec: tempo ? tempo.barSec : null, singleTempo: $('tempomode').value !== 'wide', onEvent: onEvent });
-    showPage(pkg.bar_page[pkg.order[sb]]); hidePreview();
+    var sb = startPos.pos;
+    pager = new AutoPage.AutoPager(pkg, { sampleRate: ctx.sampleRate, startPos: sb, frac: +$('frac').value / 100, previewBars: +$('prevbars').value, barSec: tempo ? tempo.barSec : null, singleTempo: $('tempomode').value !== 'wide', onEvent: onEvent });
+    showPage(startPos.page); hidePreview();
   }
   var starting = false;
   function start() {
@@ -931,6 +1017,7 @@
   }
 
   /* ---------- manual page change (pedal keys, buttons) ---------- */
+  var startPos = { page: 1, pos: 0, mark: null };  // where playing starts: page, (fractional) bar position, and the flag drawn on the score
   var maxPage = 1;
   function manual(delta) {
     var p = Math.min(maxPage, Math.max(1, (shownPage || 1) + delta)); hidePreview(); showPage(p);
@@ -941,9 +1028,29 @@
     var m = document.querySelector('main'), sx = null, sy = null, st = 0;
     m.addEventListener('touchstart', function (e) { if (e.touches.length !== 1 || e.touches[0].touchType === 'stylus') { sx = null; return; } sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); }, { passive: true });
     m.addEventListener('touchend', function (e) {
-      if (sx === null) return; var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy; sx = null;
+      if (sx === null || pz) return; var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy; sx = null;
+      if (Math.abs(dx) < 14 && Math.abs(dy) < 14 && Date.now() - st < 350 && view) {                       // a tap; two taps close together = "start here"
+        var now = Date.now(), cp = cpt(t);
+        if (lastTap && now - lastTap.t < 420 && Math.hypot(cp[0] - lastTap.x, cp[1] - lastTap.y) < 60 * cp[2]) { lastTap = null; setStart((cp[0] - view.ox) / view.s + view.reg.x0, (cp[1] - view.oy) / view.s + view.reg.y0); return; }
+        lastTap = { t: now, x: cp[0], y: cp[1] }; return;
+      }
       if (Date.now() - st < 900 && Math.abs(dx) > 60 && Math.abs(dx) > 1.6 * Math.abs(dy)) manual(dx < 0 ? 1 : -1);
     }, { passive: true });
+    var pz = null, lastTap = null;
+    m.addEventListener('dblclick', function (e) { if (ink.on || !view) return; var cp = cpt(e); setStart((cp[0] - view.ox) / view.s + view.reg.x0, (cp[1] - view.oy) / view.s + view.reg.y0); });
+    function cpt(t) { var c = $('page'), r = c.getBoundingClientRect(), d = c.width / r.width; return [(t.clientX - r.left) * d, (t.clientY - r.top) * d, d]; }
+    m.addEventListener('touchstart', function (e) {
+      if (e.touches.length === 2 && view && shownPage != null && e.touches[0].touchType !== 'stylus') {
+        sx = null; var a = cpt(e.touches[0]), b = cpt(e.touches[1]), cx = (a[0] + b[0]) / 2, cy = (a[1] + b[1]) / 2, ad = adj[shownPage];
+        pz = { d0: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, z0: ad ? ad.z : 1, px: (cx - view.ox) / view.s + view.reg.x0, py: (cy - view.oy) / view.s + view.reg.y0 };
+      }
+    }, { passive: true });
+    m.addEventListener('touchmove', function (e) {
+      if (!pz || e.touches.length !== 2 || !view) return; var a = cpt(e.touches[0]), b = cpt(e.touches[1]), cx = (a[0] + b[0]) / 2, cy = (a[1] + b[1]) / 2;
+      var z = Math.max(0.4, Math.min(5, pz.z0 * (Math.hypot(a[0] - b[0], a[1] - b[1]) / pz.d0))), s = view.s0 * z, c = $('page');
+      adj[shownPage] = { z: z, cx: pz.px - (cx - c.width / 2) / s, cy: pz.py - (cy - c.height / 2) / s }; drawPage(null, 0);
+    }, { passive: true });
+    m.addEventListener('touchend', function (e) { if (pz && e.touches.length < 2) { pz = null; viewSave(); } }, { passive: true });
     var px = null; m.addEventListener('pointerdown', function (e) { if (e.pointerType === 'mouse' && !ink.on) px = e.clientX; });
     m.addEventListener('pointerup', function (e) { if (px === null) return; var dx = e.clientX - px; px = null; if (Math.abs(dx) > 80) manual(dx < 0 ? 1 : -1); });
   })();
@@ -981,7 +1088,7 @@
   function startLearn() {
     if (running) stop();
     var AC = window.AudioContext || window.webkitAudioContext; ctx = new AC(); if (ctx.resume) ctx.resume();
-    var startIdx = +$('startbar').value, ex = new AutoPage.ChromaExtractor(ctx.sampleRate), perf = { chroma: [], rms: [] };
+    var startIdx = Math.floor(startPos.pos), ex = new AutoPage.ChromaExtractor(ctx.sampleRate), perf = { chroma: [], rms: [] };
     navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } }).then(function (s) {
       stream = s; var src = ctx.createMediaStreamSource(s), sink = ctx.createGain(); sink.gain.value = 0; sink.connect(ctx.destination);
       var feed = function (chunk) { var fr = ex.feed(chunk); for (var i = 0; i < fr.length; i++) { perf.chroma.push(fr[i].chroma); perf.rms.push(fr[i].rms); } };
@@ -1006,7 +1113,7 @@
     file.arrayBuffer().then(function (ab) { return c.decodeAudioData(ab); }).then(function (buf) {
       var d = buf.getChannelData(0), ex = new AutoPage.ChromaExtractor(buf.sampleRate), perf = { chroma: [], rms: [] };
       for (var i = 0; i < d.length; i += 8192) { var fr = ex.feed(d.subarray(i, i + 8192)); for (var k = 0; k < fr.length; k++) { perf.chroma.push(fr[k].chroma); perf.rms.push(fr[k].rms); } }
-      c.close(); applyLearned(perf, +$('startbar').value);
+      c.close(); applyLearned(perf, Math.floor(startPos.pos));
     }).catch(function (e) { log('読み込めません: ' + e); });
   }
   $('tempomode').onchange = function () { store.putKey('mode:' + (pkg.title || '') + ':' + pkg.order.length, this.value); if (running) { log('テンポの追い方を変えました。いったん止めて、もう一度「弾き始める」を押してください。'); } };
@@ -1020,21 +1127,6 @@
   var det = document.querySelector('details');
   $('closesettings').onclick = function () { det.open = false; };
   document.addEventListener('pointerdown', function (e) { if (det.open && !det.contains(e.target)) det.open = false; });
-  var delArmed = null;
-  $('delscore').onclick = function () {
-    var b = this;
-    if (!delArmed) { b.textContent = 'もう一度押すと、保存した楽譜と書き込みを消します'; delArmed = setTimeout(function () { delArmed = null; b.textContent = '保存した楽譜を消す'; }, 4000); return; }
-    clearTimeout(delArmed); delArmed = null; b.textContent = '保存した楽譜を消す';
-    if (running) stop();
-    store.clear(function () {
-      pkg = null; pager = null; tempo = null; imgs = []; pages = {}; shownPage = null; view = null; det.open = false;
-      var c = $('page'), g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height); hidePreview();
-      $('title').textContent = '譜めくりくん'; $('bar').textContent = '–'; $('pg').textContent = 'p.–'; $('go').disabled = true; $('learnbtn').disabled = true;
-      $('startbar').innerHTML = ''; showTempoInfo();
-      $('msg').hidden = false; $('msg').textContent = '保存した楽譜を消しました。「楽譜を開く」を押して、楽譜データ（.json）を選んでください。';
-    });
-  };
-
   /* ---------- make a song from page photos + a reference recording ---------- */
   var W = null;                                    // wizard state
   var TAP_DELAY = 0.35;                            // seconds a person needs to react
@@ -1099,7 +1191,7 @@
     }).then(function () { W.ready = true; W.analyzing = false; $('waudinfo').innerHTML = '<small>' + file.name + '（' + Math.round(W.dur / 60 * 10) / 10 + ' 分）読み込みました ✔</small>'; })
       .catch(function () { try { c.close(); } catch (e) {} W.capture = true; W.analyzing = false; W.ready = true; $('waudinfo').innerHTML = '<small>' + file.name + ' ✔（この形式は再生しながら取り込みます。最後まで通して再生する必要があります）</small>'; });
   }
-  $('newbtn').onclick = wopen;
+  $('newbtn').onclick = function () { $('lib').hidden = true; wopen(); };
   $('wclosebtn').onclick = function () { if (W && W.taps && W.taps.length && !confirm('印を付けた内容は消えます。閉じてよろしいですか？')) return; wclose(); };
   $('wpickimg').onclick = function () { $('wimgs').click(); };
   $('wimgs').onchange = function () {
@@ -1208,9 +1300,43 @@
     }, 50);
   };
 
+  /* ---------- "start here": double-tap on the score ---------- */
+  var refCache = null, mapCache = {};
+  function getRef() { if (!refCache) refCache = new AutoPage.Reference(pkg); return refCache; }
+  function toast(t) { var e = $('toast'); e.textContent = t; e.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(function () { e.hidden = true; }, 1600); }
+  function startFromTap(page, x, y) {
+    if (pkg.kind === 'song') {
+      var ref = getRef(), i0 = pkg.order.indexOf('p' + page); if (i0 < 0) return null;
+      var i1 = pkg.order.indexOf('p' + (page + 1)), tA = ref.barStart[i0], tB = ref.barStart[i1 < 0 ? ref.nBars : i1], f = null, im = imgs[page - 1];
+      try { if (!mapCache[page]) mapCache[page] = Song.inkMap(im); f = mapCache[page](x, y); } catch (e) { f = null; }
+      if (f === null || f === undefined || isNaN(f)) f = (y / (im.naturalHeight || 1) - 0.06) / 0.86;
+      f = Math.max(0, Math.min(0.97, f)); var t = tA + f * (tB - tA), k = i0;
+      while (k < ref.nBars - 1 && ref.barStart[k + 1] <= t) k++;
+      return k + (t - ref.barStart[k]) / Math.max(1e-6, ref.barStart[k + 1] - ref.barStart[k]);
+    }
+    var best = null, bd = 1e12;
+    pkg.order.forEach(function (lab, i) {
+      if (pkg.bar_page[lab] !== page) return; var b = pkg.rects[lab]; if (!b) return;
+      var dx = x < b.x0 ? b.x0 - x : x > b.x1 ? x - b.x1 : 0, dy = y < b.y0 ? b.y0 - y : y > b.y1 ? y - b.y1 : 0, dd = dx * dx + dy * dy;
+      if (dd < bd) { bd = dd; best = i; }
+    });
+    return best;
+  }
+  function setStart(x, y) {
+    if (!pkg || shownPage == null || !view) return;
+    var sp = startFromTap(shownPage, x, y); if (sp === null || sp === undefined) return;
+    startPos = { page: shownPage, pos: sp, mark: { page: shownPage, x: x, y: y } }; drawPage(null, 0); toast('▶ ここから弾きます');
+    if (running && ctx) makePager();                                // already listening: line the follower up with the new place
+  }
+  $('startreset').onclick = function () { startPos = { page: pkg ? pkg.bar_page[pkg.order[0]] : 1, pos: 0, mark: null }; if (pkg) showPage(startPos.page); hidePreview(); toast('⏮'); if (running && ctx) makePager(); };
+
   /* ---------- handwriting on the score (Apple Pencil) ---------- */
-  var ink = { on: false, color: '#d62828', hl: false, eraser: false, strokes: {}, cur: null, saveT: null, wPen: 14, aPen: 100, wHl: 24, aHl: 45 };   // widths in tenths of a screen pixel, opacity in %
+  var ink = { on: false, color: '#d62828', hl: false, eraser: false, strokes: {}, cur: null, saveT: null, wPen: 14, aPen: 100, wHl: 24, aHl: 45, wCov: 30, aCov: 100, cover: false };   // widths in tenths of a screen pixel, opacity in %
   try { var sv = JSON.parse(localStorage.getItem('inkset') || 'null'); if (sv) for (var kk in sv) if (kk in ink && typeof sv[kk] === 'number') ink[kk] = sv[kk]; } catch (e) {}
+  function viewKey() { return 'view:' + (pkg && pkg.title || '') + ':' + (pkg ? pkg.order.length : 0); }
+  var viewT = null;
+  function viewSave() { clearTimeout(viewT); viewT = setTimeout(function () { store.putKey(viewKey(), JSON.stringify(adj)); }, 500); }
+  function viewLoad() { adj = {}; if (!pkg) return; store.getKey(viewKey(), function (t) { try { if (t) adj = JSON.parse(t) || {}; } catch (e) {} drawPage(null, 0); }); }
   function inkKey() { return 'ink:' + (pkg && pkg.title || '') + ':' + (pkg ? pkg.order.length : 0); }
   function inkLoad() { ink.strokes = {}; if (!pkg) return; store.getKey(inkKey(), function (t) { try { if (t) ink.strokes = JSON.parse(t) || {}; } catch (e) {} drawPage(null, 0); }); }
   function inkSave() { clearTimeout(ink.saveT); ink.saveT = setTimeout(function () { store.putKey(inkKey(), JSON.stringify(ink.strokes)); }, 500); }
@@ -1238,8 +1364,8 @@
       if (!inkOn(e)) return; e.preventDefault(); try { c.setPointerCapture(e.pointerId); } catch (x) {}
       var pt = inkPoint(e), d = pt[2];
       if (ink.eraser) { ink.cur = { erase: true }; eraseAt(pt); return; }
-      var w = (ink.hl ? ink.wHl * 5 : ink.wPen) / 10 * d / view.s;
-      ink.cur = { c: ink.color, w: w, h: ink.hl ? 1 : 0, a: (ink.hl ? ink.aHl : ink.aPen) / 100, p: [pt[0], pt[1]] };
+      var cov = ink.cover, w = (cov ? ink.wCov * 5 : ink.hl ? ink.wHl * 5 : ink.wPen) / 10 * d / view.s;
+      ink.cur = { c: cov ? paperColorAt(pt[0], pt[1]) : ink.color, w: w, h: !cov && ink.hl ? 1 : 0, a: (cov ? ink.aCov : ink.hl ? ink.aHl : ink.aPen) / 100, p: [pt[0], pt[1]] };
       (ink.strokes[shownPage] = ink.strokes[shownPage] || []).push(ink.cur); drawPage(null, 0);
     });
     c.addEventListener('pointermove', function (e) {
@@ -1251,6 +1377,16 @@
     function up() { if (!ink.cur) return; ink.cur = null; inkSave(); }
     c.addEventListener('pointerup', up); c.addEventListener('pointercancel', up);
   })();
+  function paperColorAt(x, y) {                  // the colour of the paper around a point: average of the brightest third of the pixels there
+    try {
+      var im = imgs[view.reg.img], r = 22, t = document.createElement('canvas'); t.width = t.height = 2 * r; var g = t.getContext('2d', { willReadFrequently: true });
+      g.drawImage(im, x - r, y - r, 2 * r, 2 * r, 0, 0, 2 * r, 2 * r); var dd = g.getImageData(0, 0, 2 * r, 2 * r).data, px = [];
+      for (var i = 0; i < dd.length; i += 4) px.push([dd[i] + dd[i + 1] + dd[i + 2], dd[i], dd[i + 1], dd[i + 2]]);
+      px.sort(function (a, b) { return b[0] - a[0]; }); var n = Math.max(1, Math.floor(px.length / 3)), off = Math.floor(px.length / 10), R = 0, G = 0, B = 0;
+      for (var k = off; k < off + n; k++) { R += px[k][1]; G += px[k][2]; B += px[k][3]; }
+      return 'rgb(' + Math.round(R / n) + ',' + Math.round(G / n) + ',' + Math.round(B / n) + ')';
+    } catch (e) { return '#f4f1e8'; }
+  }
   function eraseAt(pt) {
     var list = ink.strokes[shownPage]; if (!list) return; var r = 16 * pt[2] / view.s, keep = list.filter(function (st) {
       for (var i = 0; i < st.p.length; i += 2) { var dx = st.p[i] - pt[0], dy = st.p[i + 1] - pt[1]; if (dx * dx + dy * dy < r * r) return false; } return true; });
@@ -1258,72 +1394,114 @@
   }
   function inkUI() {
     $('inkopts').hidden = !ink.on; $('inkt').classList.toggle('sel', ink.on);
-    Array.prototype.forEach.call(document.querySelectorAll('#inkopts .dot'), function (b) { b.classList.toggle('sel', !ink.eraser && b.getAttribute('data-c') === ink.color); });
-    $('inke').classList.toggle('sel', ink.eraser); if (!ink.on) $('inkadj').hidden = true; adjUI();
+    Array.prototype.forEach.call(document.querySelectorAll('#inkopts .dot'), function (b) { b.classList.toggle('sel', !ink.eraser && !ink.cover && b.getAttribute('data-c') === ink.color); });
+    $('inke').classList.toggle('sel', ink.eraser); $('inkc').classList.toggle('sel', ink.cover && !ink.eraser); if (!ink.on) $('inkadj').hidden = true; adjUI();
   }
   $('inkt').onclick = function () { ink.on = !ink.on; ink.cur = null; inkUI(); };
-  Array.prototype.forEach.call(document.querySelectorAll('#inkopts .dot'), function (b) { b.onclick = function () { ink.color = b.getAttribute('data-c'); ink.hl = !!b.getAttribute('data-h'); ink.eraser = false; inkUI(); }; });
+  Array.prototype.forEach.call(document.querySelectorAll('#inkopts .dot'), function (b) { b.onclick = function () { ink.color = b.getAttribute('data-c'); ink.hl = !!b.getAttribute('data-h'); ink.eraser = false; ink.cover = false; inkUI(); }; });
   function adjUI() {
-    var w = ink.hl ? ink.wHl : ink.wPen, a = ink.hl ? ink.aHl : ink.aPen;
-    $('inkwr').value = w; $('inkar').value = a; $('inkwv').textContent = (w * (ink.hl ? 5 : 1) / 10).toFixed(1); $('inkav').textContent = a + '%';
+    var big = ink.cover || ink.hl, w = ink.cover ? ink.wCov : ink.hl ? ink.wHl : ink.wPen, a = ink.cover ? ink.aCov : ink.hl ? ink.aHl : ink.aPen;
+    $('inkwr').value = w; $('inkar').value = a; $('inkwv').textContent = (w * (big ? 5 : 1) / 10).toFixed(1); $('inkav').textContent = a + '%';
     var c = $('inkprev'), g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height); g.fillStyle = '#f4f1e8'; g.fillRect(0, 0, c.width, c.height);
-    g.save(); g.lineCap = 'round'; g.strokeStyle = ink.color; g.lineWidth = w * (ink.hl ? 5 : 1) / 10 * 1.6; g.globalAlpha = a / 100; if (ink.hl) g.globalCompositeOperation = 'multiply';
+    g.save(); g.lineCap = 'round'; g.strokeStyle = ink.color; g.lineWidth = w * (big ? 5 : 1) / 10 * 1.6; g.globalAlpha = a / 100; if (ink.hl && !ink.cover) g.globalCompositeOperation = 'multiply'; if (ink.cover) g.strokeStyle = '#d8d6cc';
     g.beginPath(); g.moveTo(14, 26); g.bezierCurveTo(70, 4, 120, 40, 206, 14); g.stroke(); g.restore();
   }
-  function adjSave() { try { localStorage.setItem('inkset', JSON.stringify({ wPen: ink.wPen, aPen: ink.aPen, wHl: ink.wHl, aHl: ink.aHl })); } catch (e) {} }
+  function adjSave() { try { localStorage.setItem('inkset', JSON.stringify({ wPen: ink.wPen, aPen: ink.aPen, wHl: ink.wHl, aHl: ink.aHl, wCov: ink.wCov, aCov: ink.aCov })); } catch (e) {} }
   $('inkw').onclick = function () { $('inkadj').hidden = !$('inkadj').hidden; adjUI(); };
-  $('inkwr').oninput = function () { if (ink.hl) ink.wHl = +this.value; else ink.wPen = +this.value; adjSave(); adjUI(); };
-  $('inkar').oninput = function () { if (ink.hl) ink.aHl = +this.value; else ink.aPen = +this.value; adjSave(); adjUI(); };
+  $('inkwr').oninput = function () { if (ink.cover) ink.wCov = +this.value; else if (ink.hl) ink.wHl = +this.value; else ink.wPen = +this.value; adjSave(); adjUI(); };
+  $('inkar').oninput = function () { if (ink.cover) ink.aCov = +this.value; else if (ink.hl) ink.aHl = +this.value; else ink.aPen = +this.value; adjSave(); adjUI(); };
   $('inke').onclick = function () { ink.eraser = !ink.eraser; inkUI(); };
+  $('inkc').onclick = function () { ink.cover = !ink.cover; ink.eraser = false; inkUI(); };
   $('inku').onclick = function () { var l = ink.strokes[shownPage]; if (l && l.length) { l.pop(); inkSave(); drawPage(null, 0); } };
   var clrArm = null;
   $('inkx').onclick = function () { var b = this; if (!clrArm) { b.textContent = '?'; clrArm = setTimeout(function () { clrArm = null; b.textContent = '全消し'; }, 3000); return; } clearTimeout(clrArm); clrArm = null; b.textContent = '全消し'; ink.strokes[shownPage] = []; inkSave(); drawPage(null, 0); };
   inkUI();
   function setFull(on) {
     document.body.classList.toggle('full', on); $('fsbar').hidden = !on; $('fsbtn').textContent = on ? '⤡' : '⤢';
-    try { if (on && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(function () {}); else if (!on && document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(function () {}); } catch (e) {}
     setTimeout(function () { drawPage(null, 0); }, 60);
   }
   $('fsbtn').onclick = function () { setFull(!document.body.classList.contains('full')); };
+  $('vwreset').onclick = function () { delete adj[shownPage]; viewSave(); drawPage(null, 0); };
   $('fsback').onclick = function () { setFull(false); };
   $('fsgo').onclick = function () { $('go').click(); };
   new MutationObserver(function () { $('fsgo').textContent = $('go').textContent; $('fsgo').classList.toggle('on', $('go').classList.contains('on')); }).observe($('go'), { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['class'] });
-  document.addEventListener('fullscreenchange', function () { if (!document.fullscreenElement && document.body.classList.contains('full')) setFull(false); });
 
   /* ---------- load ---------- */
   var tickOn = false;
   function boot(p, save) {
     if (running) stop();
+    if (save) { var tl = libList(), nm = p.title || '曲', n2 = nm, k = 2; while (tl.some(function (e) { return e.title === n2; })) n2 = nm + ' (' + (k++) + ')'; p.title = n2; }
     pkg = p; pages = {}; shownPage = null; pager = null; $('title').textContent = p.title || '譜めくりくん';
     maxPage = Math.max.apply(null, Object.keys(p.bar_page).map(function (k) { return p.bar_page[k]; }));
-    var seen = {}, sel = $('startbar'); sel.innerHTML = '';
-    p.order.forEach(function (lab, i) { if (p.kind === 'song' && /[bc]$/.test(lab)) return; if (!seen[lab]) { seen[lab] = 1; var o = document.createElement('option'); o.value = i; o.textContent = p.kind === 'song' ? lab.slice(1) + ' ページの最初から' : lab + ' 小節から'; sel.appendChild(o); } });
+    startPos = { page: p.bar_page[p.order[0]], pos: 0, mark: null }; refCache = null; mapCache = {};
     $('msg').hidden = false; $('msg').textContent = '楽譜を読み込んでいます…'; $('bar').textContent = '–'; hidePreview();
     var n = 0; imgs = p.images.map(function (f) { var im = new Image(); im.onload = function () { if (++n === p.images.length) { showPage(p.bar_page[p.order[0]]); $('go').disabled = false; } }; im.src = f; return im; });
-    if (save) store.put(save);
-    tempo = null; $('learnbtn').disabled = false; showTempoInfo(); inkLoad();
+    if (save) libAdd(p);
+    tempo = null; $('learnbtn').disabled = false; showTempoInfo(); inkLoad(); viewLoad();
     store.getKey('mode:' + (p.title || '') + ':' + p.order.length, function (m) { if (m === 'wide' || m === 'single') $('tempomode').value = m; });
     store.getKey(sig(), function (t) { if (t) { try { tempo = JSON.parse(t); if (tempo.barSec.length !== p.order.length) tempo = null; } catch (e) { tempo = null; } showTempoInfo(); } });
     if (!tickOn) { tickOn = true; requestAnimationFrame(tick); }
   }
-  /* the score is kept on the iPad itself (IndexedDB), nothing is uploaded anywhere */
+  /* songs are kept on the iPad itself (IndexedDB), nothing is uploaded anywhere */
   var store = {
     open: function (cb) { try { var r = indexedDB.open('fumekuri', 1); r.onupgradeneeded = function () { r.result.createObjectStore('kv'); }; r.onsuccess = function () { cb(r.result); }; r.onerror = function () { cb(null); }; } catch (e) { cb(null); } },
-    put: function (text) { store.open(function (db) { if (!db) return; try { db.transaction('kv', 'readwrite').objectStore('kv').put(text, 'last'); } catch (e) {} }); },
-    clear: function (cb) { store.open(function (db) { if (!db) return cb(); try { var q = db.transaction('kv', 'readwrite').objectStore('kv').clear(); q.onsuccess = q.onerror = function () { cb(); }; } catch (e) { cb(); } }); },
-    putKey: function (k, v) { store.open(function (db) { if (!db) return; try { db.transaction('kv', 'readwrite').objectStore('kv').put(v, k); } catch (e) {} }); },
-    getKey: function (k, cb) { store.open(function (db) { if (!db) return cb(null); try { var q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = function () { cb(q.result || null); }; q.onerror = function () { cb(null); }; } catch (e) { cb(null); } }); },
-    get: function (cb) { store.open(function (db) { if (!db) return cb(null); try { var q = db.transaction('kv').objectStore('kv').get('last'); q.onsuccess = function () { cb(q.result || null); }; q.onerror = function () { cb(null); }; } catch (e) { cb(null); } }); }
+    putKey: function (k, v, cb) { store.open(function (db) { if (!db) return cb && cb(); try { var q = db.transaction('kv', 'readwrite').objectStore('kv').put(v, k); q.onsuccess = q.onerror = function () { cb && cb(); }; } catch (e) { cb && cb(); } }); },
+    delKey: function (k) { store.open(function (db) { if (!db) return; try { db.transaction('kv', 'readwrite').objectStore('kv').delete(k); } catch (e) {} }); },
+    getKey: function (k, cb) { store.open(function (db) { if (!db) return cb(null); try { var q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = function () { cb(q.result || null); }; q.onerror = function () { cb(null); }; } catch (e) { cb(null); } }); }
   };
-  function loadText(text, save) { try { boot(JSON.parse(text), save ? text : null); } catch (e) { $('msg').hidden = false; $('msg').textContent = 'この楽譜データは読めません: ' + e; } }
+  var lib = [], curId = null;                                    // lib: [{id,title,n,pages,thumb,at}]
+  function libList() { return lib; }
+  function libSave() { store.putKey('songs', JSON.stringify(lib)); }
+  function libAdd(p) {
+    var id = 's' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36), ent = { id: id, title: p.title, n: p.order.length, pages: p.images.length, thumb: '', at: Date.now() };
+    lib.push(ent); curId = id; store.putKey('song:' + id, JSON.stringify(p), function () { libSave(); store.putKey('lastid', id); });
+    var im = new Image(); im.onload = function () { try { var c = document.createElement('canvas'); c.width = 112; c.height = 148; var g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 112, 148); var sc = Math.max(112 / im.width, 148 / im.height); g.drawImage(im, 0, 0, im.width, im.height * 1, 0, 0, im.width * sc, im.height * sc); ent.thumb = c.toDataURL('image/jpeg', 0.7); libSave(); } catch (e) {} }; im.src = p.images[0];
+  }
+  function libOpen(id) {
+    store.getKey('song:' + id, function (t) { if (!t) return; curId = id; store.putKey('lastid', id); $('lib').hidden = true; loadText(t, false); });
+  }
+  function libDelete(id) {
+    var e = lib.filter(function (x) { return x.id === id; })[0]; if (!e) return;
+    if (running) stop();
+    ['ink:', 'view:', 'mode:'].forEach(function (pf) { store.delKey(pf + e.title + ':' + e.n); });
+    store.delKey('song:' + id); lib = lib.filter(function (x) { return x.id !== id; }); libSave();
+    if (curId === id) {
+      curId = null; store.delKey('lastid'); pkg = null; pager = null; tempo = null; imgs = []; pages = {}; shownPage = null; view = null;
+      var c = $('page'), g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height); hidePreview();
+      $('title').textContent = '譜めくりくん'; $('bar').textContent = '–'; $('pg').textContent = 'p.–'; $('go').disabled = true; $('learnbtn').disabled = true; showTempoInfo();
+      $('msg').hidden = false; $('msg').textContent = '左下の本のボタンから、曲を選んでください。';
+    }
+  }
+  var libArm = null;
+  function libRender() {
+    var box = $('liblist'); box.innerHTML = '';
+    if (!lib.length) { var em = document.createElement('small'); em.textContent = 'まだ曲がありません。下の「新しい曲を作る」から始めてください。'; box.appendChild(em); }
+    lib.slice().sort(function (a, b) { return b.at - a.at; }).forEach(function (e) {
+      var r = document.createElement('div'); r.className = 'song' + (e.id === curId ? ' cur' : '');
+      var im = document.createElement('img'); if (e.thumb) im.src = e.thumb; im.alt = ''; r.appendChild(im);
+      var nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = e.title; var sub = document.createElement('div'); sub.className = 'sub'; sub.textContent = e.pages + ' pages'; nm.appendChild(sub); r.appendChild(nm);
+      var del = document.createElement('button'); del.type = 'button'; del.setAttribute('aria-label', 'Delete'); del.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>';
+      del.onclick = function (ev) { ev.stopPropagation(); if (libArm !== e.id) { libArm = e.id; libRender(); return; } libArm = null; libDelete(e.id); libRender(); };
+      if (libArm === e.id) { del.classList.add('arm'); del.textContent = '消す？'; }
+      r.appendChild(del); r.onclick = function () { libArm = null; libOpen(e.id); }; box.appendChild(r);
+    });
+  }
+  $('libbtn').onclick = function () { libArm = null; libRender(); $('lib').hidden = false; };
+  $('libclose').onclick = function () { $('lib').hidden = true; };
+  function loadText(text, save) { try { boot(JSON.parse(text), save); } catch (e) { $('msg').hidden = false; $('msg').textContent = 'この楽譜データは読めません: ' + e; } }
   $('openbtn').onclick = function () { $('score').click(); };
-  $('score').onchange = function () { var f = this.files[0]; this.value = ''; if (f) f.text().then(function (t) { loadText(t, true); }); };
+  $('score').onchange = function () { var f = this.files[0]; this.value = ''; if (f) f.text().then(function (t) { $('lib').hidden = true; loadText(t, true); }); };
   var inline = document.getElementById('pkgdata');
-  if (inline) boot(JSON.parse(inline.textContent));
-  else store.get(function (t) {
-    if (t) return loadText(t, false);
-    fetch('package.json').then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (p) { boot(p); })
-      .catch(function () { $('msg').innerHTML = '「楽譜を開く」を押して、楽譜データ（.json）を選んでください。'; });
+  store.getKey('songs', function (t) {
+    try { lib = t ? JSON.parse(t) || [] : []; } catch (e) { lib = []; }
+    if (inline) return boot(JSON.parse(inline.textContent));
+    store.getKey('lastid', function (id) {
+      if (id && lib.some(function (x) { return x.id === id; })) return libOpen(id);
+      store.getKey('last', function (old) {                            // songs saved by older versions
+        if (old) { store.delKey('last'); return loadText(old, true); }
+        $('msg').innerHTML = '左下の本のボタンから、曲を作るか、楽譜データ（.json）を開いてください。';
+      });
+    });
   });
 })();
 </script>
