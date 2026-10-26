@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="譜めくりくん">
 <title>譜めくりくん</title>
 <style>
   :root {
@@ -95,6 +96,10 @@
   .song .nm { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .song .sub { color: var(--dim); font-size: 13px; font-weight: 400; }
   .song button { min-height: 40px; min-width: 44px; padding: 0 8px; display: grid; place-items: center; }
   .song button.arm { background: #c0392b; color: #fff; }
+  #install { position: fixed; inset: 0; z-index: 40; background: var(--bg); overflow-y: auto; display: grid; place-items: center; padding: 20px; }
+  #install[hidden] { display: none; }
+  #install .box { max-width: 560px; display: grid; gap: 14px; line-height: 1.7; } #install h2 { font-size: 20px; margin: 0; } #install p, #install ol { margin: 0; } #install ol { padding-left: 1.3em; }
+  #install #installskip { justify-self: start; font-size: 13px; color: var(--dim); }
   #toast { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); z-index: 30; background: rgba(20,22,27,.94); color: #fff; padding: 12px 20px; border-radius: 12px; font-size: 18px; font-weight: 600; pointer-events: none; }
   #toast[hidden] { display: none; }
   #wiz { position: fixed; inset: 0; z-index: 20; background: var(--bg); overflow-y: auto; -webkit-overflow-scrolling: touch; padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
@@ -121,7 +126,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v28</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v30</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><span>小節</span><b id="bar">–</b><span id="pg">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;min-width:6.5ch;text-align:right;font-variant-numeric:tabular-nums"></span></div>
 </header>
@@ -184,10 +189,23 @@
     <h2>曲の一覧</h2>
     <div id="liblist"></div>
     <div class="wrow" style="display:flex;gap:10px;flex-wrap:wrap"><button type="button" id="newbtn">＋ 新しい曲を作る</button><button type="button" id="openbtn">ファイルから開く（.json）</button></div>
-    <small>曲は、この iPad の中に保存されます。どこにも送信されません。</small>
+    <small>曲は、この iPad の中に保存されます。どこにも送信されません。↑ のボタンで曲をファイルに書き出し、別の場所（ホーム画面のアプリなど）で「ファイルから開く」と取り込めます。</small>
   </div>
 </div>
 <div id="toast" hidden></div>
+<div id="install" hidden>
+  <div class="box">
+    <h2>ホーム画面に追加して使ってください</h2>
+    <p>このアプリは、ホーム画面のアイコンから開いたときに、画面全体を楽譜に使えます。曲もそのアイコンのアプリの中に保存されます。Safari とは保存場所が別なので、最初から、ホーム画面のアイコンで使うのがおすすめです。</p>
+    <ol>
+      <li>画面上部の共有ボタン（四角から上向きの矢印が出たアイコン）をタップします。</li>
+      <li>メニューの「ホーム画面に追加」をタップします。</li>
+      <li>右上の「追加」をタップします。</li>
+      <li>ホーム画面にできた「譜めくりくん」のアイコンから開きます。</li>
+    </ol>
+    <button type="button" id="installskip">今回は Safari のまま使う</button>
+  </div>
+</div>
 <div id="lightbox" hidden><img id="lbimg" alt="楽譜のページ"><div class="bar"><button type="button" id="lbprev">◀ 前</button><span id="lbcap"></span><button type="button" id="lbnext">次 ▶</button><button type="button" id="lbclose">閉じる</button></div></div>
 <div id="wiz" hidden>
   <button type="button" class="closebtn" id="wclosebtn" aria-label="閉じる" style="position:fixed;top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));z-index:25">×</button>
@@ -1472,6 +1490,14 @@
       $('msg').hidden = false; $('msg').textContent = '左下の本のボタンから、曲を選んでください。';
     }
   }
+  function libExport(e) {
+    store.getKey('song:' + e.id, function (t) {
+      if (!t) return; var name = (e.title || 'song').replace(/[\\\/:*?"<>|]/g, '_') + '.json', f = null;
+      try { f = new File([t], name, { type: 'application/json' }); } catch (x) {}
+      if (f && navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f], title: e.title }).catch(function () {}); return; }
+      var u = URL.createObjectURL(new Blob([t], { type: 'application/json' })), a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 5000);
+    });
+  }
   var libArm = null;
   function libRender() {
     var box = $('liblist'); box.innerHTML = '';
@@ -1483,6 +1509,8 @@
       var del = document.createElement('button'); del.type = 'button'; del.setAttribute('aria-label', 'Delete'); del.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>';
       del.onclick = function (ev) { ev.stopPropagation(); if (libArm !== e.id) { libArm = e.id; libRender(); return; } libArm = null; libDelete(e.id); libRender(); };
       if (libArm === e.id) { del.classList.add('arm'); del.textContent = '消す？'; }
+      var ex = document.createElement('button'); ex.type = 'button'; ex.setAttribute('aria-label', 'Export'); ex.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M8 7l4-4 4 4M5 12v8h14v-8"/></svg>';
+      ex.onclick = function (ev) { ev.stopPropagation(); libExport(e); }; r.appendChild(ex);
       r.appendChild(del); r.onclick = function () { libArm = null; libOpen(e.id); }; box.appendChild(r);
     });
   }
@@ -1491,6 +1519,14 @@
   function loadText(text, save) { try { boot(JSON.parse(text), save); } catch (e) { $('msg').hidden = false; $('msg').textContent = 'この楽譜データは読めません: ' + e; } }
   $('openbtn').onclick = function () { $('score').click(); };
   $('score').onchange = function () { var f = this.files[0]; this.value = ''; if (f) f.text().then(function (t) { $('lib').hidden = true; loadText(t, true); }); };
+  (function () {                                                    // iPad Safari (not the home-screen app): ask to install first, so songs live in one place
+    var ios = /iPad|iPhone/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1), sa = navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+    if (ios && !sa) $('install').hidden = false;
+    $('installskip').onclick = function () { $('install').hidden = true; };
+    try { var c = document.createElement('canvas'); c.width = c.height = 180; var g = c.getContext('2d'); g.fillStyle = '#b45309'; g.fillRect(0, 0, 180, 180); g.fillStyle = '#fff'; g.fillRect(48, 38, 84, 104); g.strokeStyle = '#b45309'; g.lineWidth = 3; for (var i = 0; i < 4; i++) { g.beginPath(); g.moveTo(58, 62 + i * 14); g.lineTo(122, 62 + i * 14); g.stroke(); }
+      g.fillStyle = '#b45309'; g.beginPath(); g.moveTo(132, 142); g.lineTo(132, 100); g.lineTo(100, 142); g.closePath(); g.fill();
+      var l = document.createElement('link'); l.rel = 'apple-touch-icon'; l.href = c.toDataURL('image/png'); document.head.appendChild(l); } catch (e) {}
+  })();
   var inline = document.getElementById('pkgdata');
   store.getKey('songs', function (t) {
     try { lib = t ? JSON.parse(t) || [] : []; } catch (e) { lib = []; }
