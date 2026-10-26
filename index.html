@@ -63,7 +63,25 @@
   #inkbar { position: absolute; top: 8px; left: 8px; z-index: 3; display: flex; flex-direction: column; gap: 6px; }
   #inkbar button { min-height: 40px; width: 40px; padding: 0; border-radius: 20px; font-size: 18px; line-height: 1; display: grid; place-items: center; background: rgba(31,35,43,.82); color: #fff; border: 2px solid rgba(255,255,255,.35); }
   #inkbar button.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
-  #inkbar button.dot { border-color: rgba(255,255,255,.7); }
+  #inkbar button.dot { border-color: rgba(255,255,255,.7); min-height: 32px; width: 32px; }
+  #inkbar button.wide { width: auto; min-width: 40px; padding: 0 12px; font-size: 14px; font-weight: 600; white-space: nowrap; }
+  #inkadj { position: absolute; top: 8px; left: 130px; z-index: 4; width: 260px; background: rgba(31,35,43,.94); color: #fff; border: 1px solid rgba(255,255,255,.35); border-radius: 12px; padding: 10px 12px; display: grid; gap: 8px; }
+  #inkadj[hidden] { display: none; }
+  #inkadj label { display: grid; gap: 2px; font-size: 14px; } #inkadj label span { display: flex; justify-content: space-between; }
+  #inkadj input[type=range] { width: 100%; min-height: 30px; accent-color: var(--accent); }
+  #inkprev { width: 100%; height: 40px; background: #f4f1e8; border-radius: 6px; }
+  #fsbar { position: absolute; left: 10px; bottom: 10px; z-index: 4; display: flex; gap: 8px; }
+  #fsbar[hidden] { display: none; }
+  #fsbar button { background: rgba(31,35,43,.88); color: #fff; border: 2px solid rgba(255,255,255,.4); min-height: 44px; }
+  #fsbar button.on { background: var(--warn); }
+  body.full header, body.full footer { display: none; }
+  body.full { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); gap: 0; }
+  body.full main { border-radius: 0; border: 0; }
+  #lightbox { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.94); display: grid; grid-template-rows: 1fr auto; padding: 10px; }
+  #lightbox[hidden] { display: none; }
+  #lightbox img { width: 100%; height: 100%; object-fit: contain; min-height: 0; }
+  #lightbox .bar { display: flex; gap: 10px; justify-content: center; align-items: center; color: #fff; padding-top: 8px; }
+  #lightbox .bar button { min-width: 80px; }
   #inkopts { display: flex; flex-direction: column; gap: 6px; }
   #inkopts[hidden] { display: none; }
   #wiz { position: fixed; inset: 0; z-index: 20; background: var(--bg); overflow-y: auto; -webkit-overflow-scrolling: touch; padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
@@ -73,8 +91,8 @@
   #wiz p, #wiz small { margin: 0; color: var(--dim); }
   #wiz input[type=text] { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-height: 48px; padding: 0 12px; width: 100%; }
   #wthumbs { display: flex; flex-wrap: wrap; gap: 8px; }
-  #wthumbs figure { margin: 0; position: relative; width: 74px; }
-  #wthumbs img { width: 74px; height: 100px; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); background: #fff; display: block; }
+  #wthumbs figure { margin: 0; position: relative; width: 96px; }
+  #wthumbs img { width: 96px; height: 128px; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); background: #fff; display: block; }
   #wthumbs figcaption { text-align: center; font-size: 12px; color: var(--dim); }
   #wthumbs button { position: absolute; top: -6px; right: -6px; min-height: 26px; width: 26px; padding: 0; border-radius: 13px; font-size: 14px; }
   #wtapview, #wsetup { display: grid; gap: 10px; }
@@ -90,7 +108,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v24</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v26</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><span>小節</span><b id="bar">–</b><span id="pg">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;min-width:6.5ch;text-align:right;font-variant-numeric:tabular-nums"></span></div>
 </header>
@@ -98,6 +116,7 @@
   <canvas id="page"></canvas>
   <div id="inkbar">
     <button type="button" id="inkt" aria-label="書き込みのオン・オフ">✎</button>
+    <button type="button" id="fsbtn" aria-label="楽譜を全画面にする">⤢</button>
     <div id="inkopts" hidden>
       <button type="button" class="dot" data-c="#111111" style="background:#111" aria-label="黒"></button>
       <button type="button" class="dot" data-c="#d62828" style="background:#d62828" aria-label="赤"></button>
@@ -105,12 +124,18 @@
       <button type="button" class="dot" data-c="#15803d" style="background:#15803d" aria-label="緑"></button>
       <button type="button" class="dot" data-c="#facc15" data-h="1" style="background:#facc15" aria-label="蛍光ペン（黄）"></button>
       <button type="button" class="dot" data-c="#fb7185" data-h="1" style="background:#fb7185" aria-label="蛍光ペン（ピンク）"></button>
-      <button type="button" id="inkw" aria-label="太さ">細</button>
-      <button type="button" id="inke" aria-label="消しゴム">⌫</button>
-      <button type="button" id="inku" aria-label="一つ戻す">↶</button>
-      <button type="button" id="inkx" aria-label="このページの書き込みを全部消す">🗑</button>
+      <button type="button" id="inkw" aria-label="太さと濃さ" title="太さと濃さ"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/></svg></button>
+      <button type="button" id="inke" aria-label="消しゴム" title="消しゴム"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M8 20h11M5.5 15.5l8-9.5a2 2 0 0 1 3 0l2 2.2a2 2 0 0 1 0 2.6L12 19H8.5a2 2 0 0 1-1.5-.7z"/><path d="M9.5 10.5l5 5.5"/></svg></button>
+      <button type="button" id="inku" aria-label="一つ戻す" title="一つ戻す"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7L4.5 11.5 9 16"/><path d="M4.5 11.5H14a5.5 5.5 0 0 1 0 11h-2" transform="translate(0 -4)"/></svg></button>
+      <button type="button" id="inkx" aria-label="このページの書き込みを全部消す" title="このページの書き込みを全部消す"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6"/></svg></button>
     </div>
   </div>
+  <div id="inkadj" hidden>
+    <label><span>太さ <b id="inkwv"></b></span><input type="range" id="inkwr" min="3" max="60" step="1"></label>
+    <label><span>濃さ <b id="inkav"></b></span><input type="range" id="inkar" min="10" max="100" step="5"></label>
+    <canvas id="inkprev" width="220" height="40"></canvas>
+  </div>
+  <div id="fsbar" hidden><button type="button" id="fsback" aria-label="Exit full screen">⤡</button><button type="button" id="fsgo">弾き始める</button></div>
   <div id="msg">楽譜を読み込んでいます…</div>
   <div id="preview" aria-live="polite"><div class="cap"><span id="pvt">次のページ</span><span id="pvb"></span></div><canvas id="pvc"></canvas></div>
 </main>
@@ -138,6 +163,7 @@
   </details>
 </footer>
 
+<div id="lightbox" hidden><img id="lbimg" alt="楽譜のページ"><div class="bar"><button type="button" id="lbprev">◀ 前</button><span id="lbcap"></span><button type="button" id="lbnext">次 ▶</button><button type="button" id="lbclose">閉じる</button></div></div>
 <div id="wiz" hidden>
   <button type="button" class="closebtn" id="wclosebtn" aria-label="閉じる" style="position:fixed;top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));z-index:25">×</button>
   <div class="box">
@@ -147,7 +173,7 @@
       <input type="text" id="wtitle" placeholder="曲の名前（例: ショパン バラード1番）" maxlength="60">
       <div><button type="button" id="wpickimg">① 楽譜の写真を選ぶ（全ページ）</button><input type="file" id="wimgs" accept="image/*" multiple hidden></div>
       <div id="wthumbs"></div>
-      <small>選んだ順がページの順番になります。順番が違うときは、各写真の下の「◀ ▶」で入れ替えられます。</small>
+      <small>選んだ順がページの順番になります。順番が違うときは、写真をタップすると大きく見られます。順番は、各写真の下の「◀ ▶」で入れ替えられます。</small>
       <h2 style="font-size:16px">② お手本の取り込み方を選びます</h2>
       <div style="display:grid;gap:10px;border:1px solid var(--line);border-radius:12px;padding:12px">
         <b>方法A：録音ファイル・動画ファイルを使う</b>
@@ -1021,11 +1047,15 @@
   }
   function wclose() { if (W && W.timer) clearInterval(W.timer); if (W && W.stream) { try { W.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} } try { var m = $('wmedia'); m.pause(); m.removeAttribute('src'); m.load(); } catch (e) {} if (W && W.ctx) { try { W.ctx.close(); } catch (e) {} } W = null; $('wiz').hidden = true; }
   function wcheck() { $('wnext').disabled = !(W.imgs.length >= 2 && W.file); $('wmic').disabled = W.imgs.length < 2; }
+  var lbI = 0;
+  function lbOpen(i) { if (!W || !W.imgs.length) return; lbI = Math.max(0, Math.min(W.imgs.length - 1, i)); $('lbimg').src = W.imgs[lbI].data; $('lbcap').textContent = (lbI + 1) + ' / ' + W.imgs.length + ' ページ'; $('lightbox').hidden = false; }
+  $('lbprev').onclick = function () { lbOpen(lbI - 1); }; $('lbnext').onclick = function () { lbOpen(lbI + 1); }; $('lbclose').onclick = function () { $('lightbox').hidden = true; };
+  $('lbimg').onclick = function () { $('lightbox').hidden = true; };
   function wthumbs() {
     var box = $('wthumbs'); box.innerHTML = '';
     W.imgs.forEach(function (im, i) {
       var f = document.createElement('figure'), g = document.createElement('img'), c = document.createElement('figcaption'), x = document.createElement('button');
-      g.src = im.thumb; c.textContent = (i + 1) + ' ページ'; x.textContent = '×'; x.setAttribute('aria-label', (i + 1) + 'ページ目を消す');
+      g.src = im.thumb; g.onclick = function () { lbOpen(i); }; g.style.cursor = 'zoom-in'; c.textContent = (i + 1) + ' ページ'; x.textContent = '×'; x.setAttribute('aria-label', (i + 1) + 'ページ目を消す');
       x.onclick = function () { W.imgs.splice(i, 1); wthumbs(); wcheck(); };
       var mv = document.createElement('div'); mv.style.cssText = 'display:flex;gap:4px;justify-content:center;margin-top:2px';
       [['◀', -1], ['▶', 1]].forEach(function (d) { var bt = document.createElement('button'); bt.textContent = d[0]; bt.style.cssText = 'position:static;min-height:26px;width:32px;padding:0;font-size:12px;border-radius:6px'; bt.setAttribute('aria-label', d[1] < 0 ? '前へ移動' : '後ろへ移動');
@@ -1039,8 +1069,8 @@
       im.onload = function () {
         var w0 = im.naturalWidth, h0 = im.naturalHeight, sc = Math.min(1, 2000 / Math.max(w0, h0)), w = Math.round(w0 * sc), h = Math.round(h0 * sc);
         var c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(im, 0, 0, w, h);
-        var t = document.createElement('canvas'); t.width = 74; t.height = 100; var tg = t.getContext('2d'); tg.fillStyle = '#fff'; tg.fillRect(0, 0, 74, 100);
-        var ts = Math.min(74 / w, 100 / h); tg.drawImage(c, 0, 0, w * ts, h * ts);
+        var t = document.createElement('canvas'); t.width = 192; t.height = 256; var tg = t.getContext('2d'); tg.fillStyle = '#fff'; tg.fillRect(0, 0, 192, 256);
+        var ts = Math.min(192 / w, 256 / h); tg.drawImage(c, 0, 0, w * ts, h * ts);
         var rect = null; try { rect = Song.findFirstBar(c); } catch (e) {}
         URL.revokeObjectURL(url);
         ok({ data: c.toDataURL('image/jpeg', 0.85), w: w, h: h, thumb: t.toDataURL('image/jpeg', 0.7), rect: rect });
@@ -1097,10 +1127,16 @@
       var feed = function (c) { if (!W) return; var fr = ex.feed(c); for (var q = 0; q < fr.length; q++) { W.frames.push(fr[q].chroma); W.rms.push(fr[q].rms); wlevel(fr[q].rms); } };
       var mk = W.ctx.audioWorklet ? W.ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([workletCode], { type: 'application/javascript' }))).then(function () { var nd = new AudioWorkletNode(W.ctx, 'tap'); nd.port.onmessage = function (e) { feed(e.data); }; ms.connect(nd); nd.connect(sink); })
         : Promise.resolve().then(function () { var sp = W.ctx.createScriptProcessor(2048, 1, 1); sp.onaudioprocess = function (e) { feed(new Float32Array(e.inputBuffer.getChannelData(0))); }; ms.connect(sp); sp.connect(sink); });
+      W.useSP = function () { try { if (W.node) W.node.disconnect(); } catch (x) {} var sp = W.ctx.createScriptProcessor(2048, 1, 1); sp.onaudioprocess = function (e) { feed(new Float32Array(e.inputBuffer.getChannelData(0))); }; ms.connect(sp); sp.connect(sink); W.node = sp; };
       return mk;
-    }).then(function () { W.micOn = true; wupdate(); }).catch(function (e) { W.micErr = 'マイクを使えません（' + (e && (e.name + ' ' + e.message) || e) + '）。Safari の「設定」→「Safari」→「マイク」で許可してください。'; wupdate(); });
+    }).then(function () {
+      W.micOn = true; wupdate(); var wr = W;
+      W.resumeNow = function () { if (W === wr && W.ctx && W.ctx.state !== 'running') W.ctx.resume().catch(function () {}); }; W.resumeNow();
+      setTimeout(function () { if (W === wr && W.frames.length === 0 && W.useSP) W.useSP(); }, 3000);      // nothing arrived: use the other capture method
+    }).catch(function (e) { W.micErr = 'マイクを使えません（' + (e && (e.name + ' ' + e.message) || e) + '）。Safari の「設定」→「Safari」→「マイク」で許可してください。'; wupdate(); });
     W.timer = setInterval(function () { if (W && W.mic) wupdate(); }, 500);
   };
+  $('wiz').addEventListener('pointerdown', function () { if (W && W.mic && W.resumeNow) W.resumeNow(); }, true);     // Safari pauses audio during the permission question: any tap starts it again
   $('wnext').onclick = function () {
     W.mic = false; ['wplay', 'wback', 'wrate'].forEach(function (k) { $(k).hidden = false; });
     if (!W.ready) { $('wsetmsg').textContent = '録音の解析が終わるまで、少しお待ちください。'; return; }
@@ -1140,7 +1176,7 @@
     if (done) { t.disabled = true; t.textContent = '最後のページです'; $('wstat').textContent = '印はすべて付きました。演奏を最後まで聞かせてから「できた」を押してください。'; }
     else { t.disabled = false; t.textContent = 'ここでめくりたい'; $('wstat').textContent = p + ' ページ目：このページを「めくりたい」と思う瞬間に、タップしてください'; }
 
-    if (W.mic) { $('wdone').disabled = !done; if (W.micErr) { $('wstat').textContent = '⚠ ' + W.micErr; $('wtap').disabled = true; return; } if (!W.micOn && !done) { $('wstat').textContent = 'マイクを準備しています…（許可の確認が出たら「許可」を押してください）'; } else if (!done) $('wstat').textContent = '● 録音中 ' + Math.round(W.now()) + ' 秒　' + (W.frames.length < 10 && W.micOn ? '⚠ まだ音が入ってきません。 ' : '') + $('wstat').textContent; if (done) $('wstat').textContent = '印はすべて付きました。演奏を最後まで聞かせてから「できた」を押してください。'; $('wundo').disabled = !k; return; }
+    if (W.mic) { $('wdone').disabled = !done; if (W.micErr) { $('wstat').textContent = '⚠ ' + W.micErr; $('wtap').disabled = true; return; } if (!W.micOn && !done) { $('wstat').textContent = 'マイクを準備しています…（許可の確認が出たら「許可」を押してください）'; } else if (!done) $('wstat').textContent = '● 録音中 ' + Math.round(W.now()) + ' 秒　' + (W.frames.length < 10 && W.micOn ? '⚠ まだ音が入ってきません。画面を1回タップしてみてください。 ' : '') + $('wstat').textContent; if (done) $('wstat').textContent = '印はすべて付きました。演奏を最後まで聞かせてから「できた」を押してください。'; $('wundo').disabled = !k; return; }
     $('wdone').disabled = !done || (W.capture && !$('wmedia').ended);
     if (done && W.capture && !$('wmedia').ended) $('wstat').textContent += '（この録音は、最後まで再生が終わるのを待ってください）';
     $('wundo').disabled = !k;
@@ -1173,7 +1209,8 @@
   };
 
   /* ---------- handwriting on the score (Apple Pencil) ---------- */
-  var ink = { on: false, color: '#d62828', hl: false, wide: false, eraser: false, strokes: {}, cur: null, saveT: null };
+  var ink = { on: false, color: '#d62828', hl: false, eraser: false, strokes: {}, cur: null, saveT: null, wPen: 14, aPen: 100, wHl: 24, aHl: 45 };   // widths in tenths of a screen pixel, opacity in %
+  try { var sv = JSON.parse(localStorage.getItem('inkset') || 'null'); if (sv) for (var kk in sv) if (kk in ink && typeof sv[kk] === 'number') ink[kk] = sv[kk]; } catch (e) {}
   function inkKey() { return 'ink:' + (pkg && pkg.title || '') + ':' + (pkg ? pkg.order.length : 0); }
   function inkLoad() { ink.strokes = {}; if (!pkg) return; store.getKey(inkKey(), function (t) { try { if (t) ink.strokes = JSON.parse(t) || {}; } catch (e) {} drawPage(null, 0); }); }
   function inkSave() { clearTimeout(ink.saveT); ink.saveT = setTimeout(function () { store.putKey(inkKey(), JSON.stringify(ink.strokes)); }, 500); }
@@ -1186,7 +1223,7 @@
   }
   function drawOne(g, st, v) {
     g.save(); g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = st.c; g.lineWidth = st.w * v.s;
-    if (st.h) { g.globalAlpha = 0.45; g.globalCompositeOperation = 'multiply'; }
+    g.globalAlpha = st.a === undefined ? (st.h ? 0.45 : 1) : st.a; if (st.h) g.globalCompositeOperation = 'multiply';
     strokePath(g, st, v); g.restore();
   }
   function drawInk(g, v) { var list = ink.strokes[shownPage]; if (!v || !list) return; for (var i = 0; i < list.length; i++) drawOne(g, list[i], v); }
@@ -1201,8 +1238,8 @@
       if (!inkOn(e)) return; e.preventDefault(); try { c.setPointerCapture(e.pointerId); } catch (x) {}
       var pt = inkPoint(e), d = pt[2];
       if (ink.eraser) { ink.cur = { erase: true }; eraseAt(pt); return; }
-      var w = (ink.hl ? (ink.wide ? 20 : 12) : (ink.wide ? 4.2 : 2.2)) * d / view.s;
-      ink.cur = { c: ink.color, w: w, h: ink.hl ? 1 : 0, p: [pt[0], pt[1]] };
+      var w = (ink.hl ? ink.wHl * 5 : ink.wPen) / 10 * d / view.s;
+      ink.cur = { c: ink.color, w: w, h: ink.hl ? 1 : 0, a: (ink.hl ? ink.aHl : ink.aPen) / 100, p: [pt[0], pt[1]] };
       (ink.strokes[shownPage] = ink.strokes[shownPage] || []).push(ink.cur); drawPage(null, 0);
     });
     c.addEventListener('pointermove', function (e) {
@@ -1222,16 +1259,36 @@
   function inkUI() {
     $('inkopts').hidden = !ink.on; $('inkt').classList.toggle('sel', ink.on);
     Array.prototype.forEach.call(document.querySelectorAll('#inkopts .dot'), function (b) { b.classList.toggle('sel', !ink.eraser && b.getAttribute('data-c') === ink.color); });
-    $('inke').classList.toggle('sel', ink.eraser); $('inkw').textContent = ink.wide ? '太' : '細';
+    $('inke').classList.toggle('sel', ink.eraser); if (!ink.on) $('inkadj').hidden = true; adjUI();
   }
   $('inkt').onclick = function () { ink.on = !ink.on; ink.cur = null; inkUI(); };
   Array.prototype.forEach.call(document.querySelectorAll('#inkopts .dot'), function (b) { b.onclick = function () { ink.color = b.getAttribute('data-c'); ink.hl = !!b.getAttribute('data-h'); ink.eraser = false; inkUI(); }; });
-  $('inkw').onclick = function () { ink.wide = !ink.wide; inkUI(); };
+  function adjUI() {
+    var w = ink.hl ? ink.wHl : ink.wPen, a = ink.hl ? ink.aHl : ink.aPen;
+    $('inkwr').value = w; $('inkar').value = a; $('inkwv').textContent = (w * (ink.hl ? 5 : 1) / 10).toFixed(1); $('inkav').textContent = a + '%';
+    var c = $('inkprev'), g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height); g.fillStyle = '#f4f1e8'; g.fillRect(0, 0, c.width, c.height);
+    g.save(); g.lineCap = 'round'; g.strokeStyle = ink.color; g.lineWidth = w * (ink.hl ? 5 : 1) / 10 * 1.6; g.globalAlpha = a / 100; if (ink.hl) g.globalCompositeOperation = 'multiply';
+    g.beginPath(); g.moveTo(14, 26); g.bezierCurveTo(70, 4, 120, 40, 206, 14); g.stroke(); g.restore();
+  }
+  function adjSave() { try { localStorage.setItem('inkset', JSON.stringify({ wPen: ink.wPen, aPen: ink.aPen, wHl: ink.wHl, aHl: ink.aHl })); } catch (e) {} }
+  $('inkw').onclick = function () { $('inkadj').hidden = !$('inkadj').hidden; adjUI(); };
+  $('inkwr').oninput = function () { if (ink.hl) ink.wHl = +this.value; else ink.wPen = +this.value; adjSave(); adjUI(); };
+  $('inkar').oninput = function () { if (ink.hl) ink.aHl = +this.value; else ink.aPen = +this.value; adjSave(); adjUI(); };
   $('inke').onclick = function () { ink.eraser = !ink.eraser; inkUI(); };
   $('inku').onclick = function () { var l = ink.strokes[shownPage]; if (l && l.length) { l.pop(); inkSave(); drawPage(null, 0); } };
   var clrArm = null;
-  $('inkx').onclick = function () { var b = this; if (!clrArm) { b.textContent = '?'; clrArm = setTimeout(function () { clrArm = null; b.textContent = '🗑'; }, 3000); return; } clearTimeout(clrArm); clrArm = null; b.textContent = '🗑'; ink.strokes[shownPage] = []; inkSave(); drawPage(null, 0); };
+  $('inkx').onclick = function () { var b = this; if (!clrArm) { b.textContent = '?'; clrArm = setTimeout(function () { clrArm = null; b.textContent = '全消し'; }, 3000); return; } clearTimeout(clrArm); clrArm = null; b.textContent = '全消し'; ink.strokes[shownPage] = []; inkSave(); drawPage(null, 0); };
   inkUI();
+  function setFull(on) {
+    document.body.classList.toggle('full', on); $('fsbar').hidden = !on; $('fsbtn').textContent = on ? '⤡' : '⤢';
+    try { if (on && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(function () {}); else if (!on && document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(function () {}); } catch (e) {}
+    setTimeout(function () { drawPage(null, 0); }, 60);
+  }
+  $('fsbtn').onclick = function () { setFull(!document.body.classList.contains('full')); };
+  $('fsback').onclick = function () { setFull(false); };
+  $('fsgo').onclick = function () { $('go').click(); };
+  new MutationObserver(function () { $('fsgo').textContent = $('go').textContent; $('fsgo').classList.toggle('on', $('go').classList.contains('on')); }).observe($('go'), { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+  document.addEventListener('fullscreenchange', function () { if (!document.fullscreenElement && document.body.classList.contains('full')) setFull(false); });
 
   /* ---------- load ---------- */
   var tickOn = false;
