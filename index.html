@@ -1,0 +1,750 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>譜めくりくん</title>
+<style>
+  :root {
+    --bg: #16181d; --panel: #1f232b; --line: #343a46; --fg: #ece8df; --dim: #9aa1ae;
+    --accent: #f0b24a; --ok: #6cc59b; --warn: #e5826a; --paper: #f4f1e8; --ink: #1a1c20;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #e9e6dd; --panel: #f6f4ee; --line: #c9c4b6; --fg: #23252b; --dim: #6a6f7a; --accent: #b9680b; --ok: #1f8a5b; --warn: #b8442b; color-scheme: light; }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.4 -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", system-ui, sans-serif; overscroll-behavior: none; }
+  body { display: flex; flex-direction: column; padding: env(safe-area-inset-top) max(12px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(12px, env(safe-area-inset-left)); gap: 10px; }
+  header { display: flex; align-items: center; gap: 14px; padding-top: 10px; min-height: 52px; }
+  header h1 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: .02em; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .readout { display: flex; align-items: baseline; gap: 8px; font-variant-numeric: tabular-nums; }
+  .readout b { font-size: 30px; font-weight: 650; line-height: 1; min-width: 2.2ch; text-align: right; }
+  .readout span { color: var(--dim); font-size: 13px; }
+  .meter { width: 70px; height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+  .meter i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .08s linear; }
+  .meter.lost i { background: var(--warn); }
+  main { position: relative; flex: 1; min-height: 0; background: #0d0e11; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  #page { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #msg[hidden] { display: none; }
+  #msg { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--dim); }
+  #preview { position: absolute; bottom: 6px; right: 6px; width: min(22%, 220px); background: var(--paper); border: 2px solid var(--accent); border-radius: 6px;
+    box-shadow: 0 3px 12px rgba(0,0,0,.45); opacity: 0; pointer-events: none; transition: opacity .25s; }
+  #preview.on { opacity: 1; }
+  #preview .cap { display: flex; justify-content: space-between; gap: 8px; padding: 1px 6px; background: var(--accent); color: #231a07; font-size: 10px; font-weight: 700; }
+  #preview canvas { display: block; width: 100%; height: auto; background: var(--paper); }
+  footer { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding-bottom: 10px; }
+  button, select { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-height: 48px; padding: 0 16px; }
+  button:active { transform: scale(.98); }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  #go { background: var(--accent); color: #231a07; border-color: transparent; font-weight: 700; min-width: 140px; }
+  #go.on, #learnbtn.on { background: var(--warn); color: #fff; }
+  .spacer { flex: 1; }
+  details { position: relative; }
+  summary { list-style: none; display: grid; place-items: center; min-height: 48px; padding: 0 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); cursor: pointer; }
+  summary::-webkit-details-marker { display: none; }
+  .settings { position: absolute; right: 0; bottom: 58px; width: min(86vw, 360px); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 14px; z-index: 5; box-shadow: 0 8px 28px rgba(0,0,0,.4); }
+  .settings label { display: grid; gap: 4px; font-size: 14px; }
+  .settings label span { display: flex; justify-content: space-between; color: var(--dim); }
+  .settings input[type=range] { width: 100%; min-height: 32px; accent-color: var(--accent); }
+  .settings small { color: var(--dim); }
+  #log { font-size: 12px; color: var(--dim); white-space: pre-line; max-height: 5.6em; overflow: auto; }
+  @media (max-width: 560px) { .meter { display: none; } #go { flex: 1; } }
+  @media (prefers-reduced-motion: reduce) { #preview { transition: none; } }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">譜めくりくん</h1>
+  <div class="meter" id="meter" title="マイクの音量"><i></i></div>
+  <div class="readout" aria-live="off"><span>小節</span><b id="bar">–</b><span id="pg">p.–</span></div>
+</header>
+<main>
+  <canvas id="page"></canvas>
+  <div id="msg">楽譜を読み込んでいます…</div>
+  <div id="preview" aria-live="polite"><div class="cap"><span id="pvt">次のページ</span><span id="pvb"></span></div><canvas id="pvc"></canvas></div>
+</main>
+<footer>
+  <button id="go" disabled>聞き始める</button>
+  <button id="prev" aria-label="前のページ">◀ 前</button>
+  <button id="next" aria-label="次のページ">次 ▶</button>
+  <select id="startbar" aria-label="弾き始める小節"></select>
+  <span class="spacer"></span>
+  <label style="color:var(--dim);font-size:13px"><input type="file" id="file" accept="audio/*" hidden><button id="filebtn" type="button">録音で試す</button></label>
+  <input type="file" id="score" accept=".json,application/json" hidden><button id="openbtn" type="button">楽譜を開く</button>
+  <details><summary>設定</summary>
+    <div class="settings">
+      <label><span>めくる位置（最終小節の中）<b id="fracv">55%</b></span><input type="range" id="frac" min="20" max="90" step="5" value="55"></label>
+      <label><span>次ページの予告（何小節前から）<b id="prevv">2</b></span><input type="range" id="prevbars" min="0" max="4" step="1" value="2"></label>
+      <label><span>テンポの追い方</span>
+        <select id="tempomode"><option value="single">標準（速さがあまり変わらない曲）</option><option value="wide">広い（ラルゴ〜プレストのように、速さが大きく変わる曲）</option></select></label>
+      <small id="tempoinfo">テンポ: 未学習（「弾いて覚える」で、通して1回弾くと、速さの変化を覚えます）</small>
+      <button type="button" id="learnbtn" disabled>通して弾いて覚える（上級）</button>
+      <button type="button" id="learnfilebtn">録音ファイルから覚える（上級）</button><input type="file" id="learnfile" accept="audio/*" hidden>
+      <button type="button" id="learnreset">覚えたテンポを消す</button>
+      <small>ペダルの信号（→ / ← / PageDown / PageUp）でも、手動でめくれます。</small>
+      <div id="log"></div>
+    </div>
+  </details>
+</footer>
+
+<script>
+/* Score follower + page-turn controller (port of audio.py / tracker.py).  Pure JavaScript, no DOM:
+   works in the browser (window.AutoPage) and in Node (module.exports) so that it can be tested against the Python version. */
+(function (root) {
+  'use strict';
+
+  var REF_SR = 22050, REF_NFFT = 4096, REF_HOP = 1024;     // the reference chroma was made with these
+
+  /* ------------------------------------------------------------ FFT (radix 2, real input) */
+  function makeFFT(n) {
+    var levels = Math.round(Math.log2(n)), cos = new Float64Array(n / 2), sin = new Float64Array(n / 2), rev = new Uint32Array(n);
+    for (var i = 0; i < n / 2; i++) { cos[i] = Math.cos(2 * Math.PI * i / n); sin[i] = Math.sin(2 * Math.PI * i / n); }
+    for (var i2 = 0; i2 < n; i2++) { var r = 0, x = i2; for (var k = 0; k < levels; k++) { r = (r << 1) | (x & 1); x >>>= 1; } rev[i2] = r >>> 0; }
+    var re = new Float64Array(n), im = new Float64Array(n);
+    return function (input, mag) {                          // input: Float64Array(n) -> mag: Float64Array(n/2+1)
+      for (var i = 0; i < n; i++) { re[rev[i]] = input[i]; im[rev[i]] = 0; }
+      for (var size = 2; size <= n; size *= 2) {
+        var half = size / 2, step = n / size;
+        for (var s = 0; s < n; s += size) {
+          for (var j = s, k2 = 0; j < s + half; j++, k2 += step) {
+            var l = j + half, tr = re[l] * cos[k2] + im[l] * sin[k2], ti = -re[l] * sin[k2] + im[l] * cos[k2];
+            re[l] = re[j] - tr; im[l] = im[j] - ti; re[j] += tr; im[j] += ti;
+          }
+        }
+      }
+      for (var b = 0; b <= n / 2; b++) mag[b] = Math.sqrt(re[b] * re[b] + im[b] * im[b]);
+    };
+  }
+
+  /* ------------------------------------------------------------ streaming chroma (same definition as audio.ChromaExtractor) */
+  function ChromaExtractor(sr) {
+    this.sr = sr;
+    var nfft = 1; while (nfft < REF_NFFT * sr / REF_SR * 0.99) nfft *= 2;        // same frequency resolution as 4096 @ 22050
+    this.nfft = nfft;
+    this.hop = Math.round(REF_HOP * sr / REF_SR);                                // same frame rate (46.4 ms)
+    this.win = new Float64Array(nfft);
+    for (var i = 0; i < nfft; i++) this.win[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / nfft);
+    this.fft = makeFFT(nfft);
+    this.mag = new Float64Array(nfft / 2 + 1);
+    this.tmp = new Float64Array(nfft);
+    this.bins = [];                                                              // soft assignment of FFT bins to pitch classes
+    for (var k = 0; k <= nfft / 2; k++) {
+      var f = k * sr / nfft;
+      if (f >= 70 && f <= 2400) {
+        var m = 69 + 12 * Math.log2(f / 440), lo = Math.floor(m), frac = m - lo;
+        this.bins.push([k, ((lo % 12) + 12) % 12, 1 - frac, (((lo + 1) % 12) + 12) % 12, frac]);
+      }
+    }
+    this.buf = new Float32Array(nfft * 4); this.len = 0;
+    this.hist = [];
+  }
+  ChromaExtractor.prototype.feed = function (chunk) {
+    var out = [], n = this.nfft;
+    if (this.len + chunk.length > this.buf.length) {
+      var nb = new Float32Array(Math.max(this.buf.length * 2, this.len + chunk.length)); nb.set(this.buf.subarray(0, this.len)); this.buf = nb;
+    }
+    this.buf.set(chunk, this.len); this.len += chunk.length;
+    var pos = 0;
+    while (this.len - pos >= n) {
+      var s = 0;
+      for (var i = 0; i < n; i++) { var v = this.buf[pos + i]; s += v * v; this.tmp[i] = v * this.win[i]; }
+      var rms = Math.sqrt(s / n);
+      this.fft(this.tmp, this.mag);
+      var c = new Float64Array(12);
+      for (var b = 0; b < this.bins.length; b++) { var e = this.bins[b], m = this.mag[e[0]]; c[e[1]] += e[2] * m; c[e[3]] += e[4] * m; }
+      for (var p = 0; p < 12; p++) c[p] = Math.sqrt(c[p]);
+      this.hist.push(c); if (this.hist.length > 3) this.hist.shift();
+      var avg = new Float64Array(12), mean = 0;
+      for (var h = 0; h < this.hist.length; h++) for (var q = 0; q < 12; q++) avg[q] += this.hist[h][q] / this.hist.length;
+      for (var q2 = 0; q2 < 12; q2++) mean += avg[q2] / 12;
+      var nrm = 0;
+      for (var q3 = 0; q3 < 12; q3++) { avg[q3] -= mean; nrm += avg[q3] * avg[q3]; }
+      nrm = Math.sqrt(nrm);
+      if (nrm > 1e-9) for (var q4 = 0; q4 < 12; q4++) avg[q4] /= nrm;
+      out.push({ chroma: avg, rms: rms });
+      pos += this.hop;
+    }
+    this.buf.copyWithin(0, pos, this.len); this.len -= pos;
+    return out;
+  };
+
+  /* ------------------------------------------------------------ silence gate */
+  function SilenceGate(calib) { this.calib = calib || 8; this.n = 0; this.vals = []; this.floor = null; this.peak = 0; }
+  SilenceGate.prototype.silent = function (rms) {
+    this.n++;
+    if (this.floor === null) {
+      this.vals.push(rms);
+      if (this.n >= this.calib) { var v = this.vals.slice().sort(function (a, b) { return a - b; }); var med = (v[(v.length - 1) >> 1] + v[v.length >> 1]) / 2; this.floor = Math.max(med, 1e-5); }
+      return true;
+    }
+    this.peak = Math.max(this.peak * 0.9995, rms);
+    return rms < Math.max(2 * this.floor, 0.04 * this.peak);
+  };
+
+  /* ------------------------------------------------------------ reference (made by make_package.py) */
+  function decodeF32(s) {
+    if (typeof Buffer !== 'undefined') { var bf = Buffer.from(s, 'base64'); return new Float32Array(bf.buffer.slice(bf.byteOffset, bf.byteOffset + bf.length)); }
+    var bin = atob(s), u = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Float32Array(u.buffer);
+  }
+  function Reference(pkg) {
+    var dec = decodeF32;
+    this.T = pkg.T; this.R = dec(pkg.chroma); this.frameBars = dec(pkg.frame_bars); this.barStart = dec(pkg.bar_start);
+    this.order = pkg.order; this.barFrames = pkg.bar_frames; this.nBars = pkg.order.length;
+  }
+  Reference.prototype.barsAt = function (frame) {
+    var T = this.T; if (frame <= 0) return this.frameBars[0]; if (frame >= T - 1) return this.frameBars[T - 1];
+    var i = Math.floor(frame), f = frame - i; return this.frameBars[i] * (1 - f) + this.frameBars[i + 1] * f;
+  };
+  Reference.prototype.barSeconds = function (pos) {
+    var k = Math.min(Math.max(Math.floor(pos), 0), this.nBars - 1); return this.barStart[k + 1] - this.barStart[k];
+  };
+
+  /* ------------------------------------------------------------ learn the tempo from one play-through */
+  var FPS = REF_SR / REF_HOP;
+  // time-stretch every bar of the reference so that it lasts barSec[k] seconds (the rest stays as it is)
+  Reference.prototype.warp = function (barSec) {
+    var n = this.nBars, old = this, bs = old.barStart, outFrames = [], total = 0, k, i;
+    var cnt = new Array(n);
+    for (k = 0; k < n; k++) { cnt[k] = Math.max(2, Math.round(barSec[k] * FPS)); total += cnt[k]; }
+    var R = new Float32Array(total * 12), fb = new Float32Array(total), start = new Float32Array(n + 1), o = 0, t = 0;
+    for (k = 0; k < n; k++) {
+      var f0 = bs[k] * FPS, f1 = bs[k + 1] * FPS, c = cnt[k];
+      for (i = 0; i < c; i++) {
+        var src = f0 + (f1 - f0) * (i + 0.5) / c, a = Math.min(old.T - 1, Math.max(0, Math.floor(src))), b = Math.min(old.T - 1, a + 1), w = src - a, nr = 0, q;
+        for (q = 0; q < 12; q++) { var v = old.R[a * 12 + q] * (1 - w) + old.R[b * 12 + q] * w; R[o * 12 + q] = v; nr += v * v; }
+        nr = Math.sqrt(nr) || 1; for (q = 0; q < 12; q++) R[o * 12 + q] /= nr;
+        fb[o] = k + (i + 0.5) / c; o++;
+      }
+      start[k] = t / FPS; t += c;
+    }
+    start[n] = t / FPS;
+    var r = Object.create(Reference.prototype);
+    r.T = total; r.R = R; r.frameBars = fb; r.barStart = start; r.order = old.order; r.nBars = n; r.barFrames = total / n;
+    return r;
+  };
+
+  // perf: {chroma: [Float64Array(12)...], rms: [...]} recorded while the player plays the piece straight through (from startBar to the end,
+  // or as far as they played).  Returns {barSec, lastBar}: how long every bar took in this playing (uncovered bars keep the average ratio).
+  function learnTempo(ref, perf, startBar, onProgress) {
+    var m0 = perf.chroma.length, i, j, q;
+    var floor = 0, peak = 0; var v = perf.rms.slice(0, 8).sort(function (a, b) { return a - b; }); floor = Math.max(v[v.length >> 1] || 0, 1e-5);
+    for (i = 0; i < m0; i++) peak = Math.max(peak, perf.rms[i]);
+    var thr = Math.max(2 * floor, 0.04 * peak), a0 = 0, a1 = m0 - 1;
+    while (a0 < m0 && perf.rms[a0] < thr) a0++; while (a1 > a0 && perf.rms[a1] < thr) a1--;
+    var m1 = a1 - a0 + 1; if (m1 < 60) throw new Error('録音が短すぎます');
+    var fs = 0; while (fs < ref.T - 1 && ref.frameBars[fs] < (startBar || 0)) fs++;
+    var nRef = ref.T - fs, ratio = nRef / m1, dp = 2, dr = Math.max(1, Math.round(ratio * dp));
+    while ((nRef / dr) * (m1 / dp) > 4.5e7) { dp *= 2; dr *= 2; }
+    var n = Math.floor(nRef / dr), m = Math.floor(m1 / dp);
+    var Rs = new Float32Array(n * 12), Ps = new Float32Array(m * 12);
+    function avgInto(dst, rows, count, step, get) {
+      for (var r = 0; r < count; r++) { var nr = 0, a = new Float64Array(12); for (var s = 0; s < step; s++) { var vec = get(r * step + s); for (var q2 = 0; q2 < 12; q2++) a[q2] += vec[q2]; }
+        for (q2 = 0; q2 < 12; q2++) nr += a[q2] * a[q2]; nr = Math.sqrt(nr) || 1; for (q2 = 0; q2 < 12; q2++) dst[r * 12 + q2] = a[q2] / nr; }
+    }
+    avgInto(Rs, null, n, dr, function (k) { var o = new Float32Array(12); for (var z = 0; z < 12; z++) o[z] = ref.R[(fs + k) * 12 + z]; return o; });
+    avgInto(Ps, null, m, dp, function (k) { return perf.chroma[a0 + k]; });
+    var INF = 1e9, B = new Int8Array(n * m), rows = [new Float32Array(m), new Float32Array(m), new Float32Array(m)], cost = new Float32Array(m);
+    var endCost = new Float64Array(n).fill(INF);
+    for (i = 0; i < n; i++) {
+      var cur = rows[i % 3], p1 = rows[(i + 2) % 3], p2 = rows[(i + 1) % 3];
+      for (j = 0; j < m; j++) { var d = 0; for (q = 0; q < 12; q++) d += Rs[i * 12 + q] * Ps[j * 12 + q]; cost[j] = 1 - d; }
+      if (i === 0) { cur[0] = cost[0]; for (j = 1; j < m; j++) cur[j] = INF; }
+      else for (j = 0; j < m; j++) {
+        var best = INF, bk = 0, c1 = (j >= 1) ? p1[j - 1] : INF, c2 = (i >= 2 && j >= 1) ? p2[j - 1] : INF, c3 = (j >= 2) ? p1[j - 2] : INF;
+        best = c1; bk = 0; if (c2 < best) { best = c2; bk = 1; } if (c3 < best) { best = c3; bk = 2; }
+        cur[j] = best >= INF ? INF : best + cost[j]; B[i * m + j] = bk;
+      }
+      endCost[i] = cur[m - 1] / (i + m);
+      if (onProgress && (i & 255) === 0) onProgress(i / n);
+    }
+    var iEnd = 0; for (i = 1; i < n; i++) if (endCost[i] < endCost[iEnd]) iEnd = i;
+    var pi = [], pj = []; i = iEnd; j = m - 1;
+    while (true) {
+      pi.push(i); pj.push(j); if (i === 0 && j === 0) break;
+      var k2 = B[i * m + j]; if (k2 === 0) { i -= 1; j -= 1; } else if (k2 === 1) { i -= 2; j -= 1; } else { i -= 1; j -= 2; }
+      if (i < 0 || j < 0) break;
+    }
+    pi.reverse(); pj.reverse();
+    // perf time (frames) at the start of every reference bar
+    var nB = ref.nBars, bt = new Float64Array(nB + 1).fill(NaN), pos, last = Math.floor(ref.frameBars[Math.min(ref.T - 1, fs + iEnd * dr)]), prevB = -1;
+    var tmax = 0;
+    for (var x = 0; x < pi.length; x++) {
+      pos = ref.frameBars[Math.min(ref.T - 1, fs + pi[x] * dr)];
+      var tf = (pj[x] * dp) + 0, bi = Math.ceil(pos - 1e-9);
+      if (bi > prevB && bi <= nB) { for (var bb = prevB + 1; bb <= bi; bb++) bt[bb] = tf; prevB = bi; }
+      tmax = tf;
+    }
+    var covered = Math.max(0, Math.min(prevB, last)), barSec = new Float64Array(nB), sumRatio = 0, cr = 0, sbar = Math.ceil(startBar || 0);
+    for (var k3 = sbar; k3 < covered && k3 + 1 <= prevB; k3++) {
+      var secs = (bt[k3 + 1] - bt[k3]) / FPS, nom = ref.barStart[k3 + 1] - ref.barStart[k3];
+      if (isFinite(secs) && secs > 0.15) { barSec[k3] = secs; sumRatio += secs / nom; cr++; }
+    }
+    var avgR = cr ? sumRatio / cr : 1;
+    for (var k4 = 0; k4 < nB; k4++) if (!(barSec[k4] > 0)) barSec[k4] = (ref.barStart[k4 + 1] - ref.barStart[k4]) * avgR;
+    return { barSec: Array.prototype.slice.call(barSec), firstBar: sbar, lastBar: covered, cost: endCost[iEnd] };
+  }
+
+  /* ------------------------------------------------------------ aligner */
+  function Aligner(ref, o) {
+    o = o || {};
+    this.ref = ref; this.T = ref.T; this.beta = o.beta || 10; this.epsObs = o.epsObs === undefined ? 0.5 : o.epsObs; this.slip = o.slip === undefined ? 0.003 : o.slip;
+    this.rhoF = Math.exp(-1 / ((o.lamFwd || 0.25) * ref.barFrames)); this.rhoB = Math.exp(-1 / ((o.lamBack || 0.5) * ref.barFrames));
+    this.W = Math.floor(0.75 * ref.barFrames);
+    var T = this.T; this.b = new Float64Array(T); this.nb = new Float64Array(T); this.fw = new Float64Array(T); this.bw = new Float64Array(T);
+    var s = Math.floor((o.startBar || 0) * ref.barFrames);
+    for (var i = s; i < Math.min(s + 6, T); i++) this.b[i] = 1 / Math.min(6, T - s);
+    this.r = 1; this.hist = []; this.sims = []; this.match = 0; this.conf = 0; this.j = s;
+  }
+  Aligner.prototype.step = function (chroma, silent) {
+    var T = this.T, b = this.b, R = this.ref.R;
+    if (!silent) {
+      var kw = new Float64Array(7), ks = 0;
+      for (var k = 0; k < 7; k++) { kw[k] = Math.exp(-0.5 * Math.pow((k - this.r) / 0.45, 2)); ks += kw[k]; }
+      for (var k1 = 0; k1 < 7; k1++) kw[k1] /= ks;
+      var nb = this.nb, fw = this.fw, bw = this.bw, rf = this.rhoF, rb = this.rhoB, slip = this.slip;
+      var acc = 0; for (var i = 0; i < T; i++) { acc = (1 - rf) * b[i] + rf * acc; fw[i] = acc; }
+      acc = 0; for (var i2 = T - 1; i2 >= 0; i2--) { acc = (1 - rb) * b[i2] + rb * acc; bw[i2] = acc; }
+      var tot = 0;
+      for (var i3 = 0; i3 < T; i3++) {
+        var conv = 0;
+        for (var kk = 0; kk < 7; kk++) { var idx = i3 - kk; if (idx >= 0) conv += kw[kk] * b[idx]; }
+        var spread = 0.5 * ((i3 > 0 ? fw[i3 - 1] : 0) + (i3 < T - 1 ? bw[i3 + 1] : 0));
+        var nv = (1 - slip) * conv + slip * spread;
+        var sim = 0, o = i3 * 12;
+        for (var p = 0; p < 12; p++) sim += R[o + p] * chroma[p];
+        var lik = (1 - this.epsObs) * Math.exp(this.beta * (sim - 1)) + this.epsObs;
+        nv *= lik; nb[i3] = nv; tot += nv;
+      }
+      if (!(tot > 0)) { tot = 1; }
+      for (var i4 = 0; i4 < T; i4++) nb[i4] /= tot;
+      this.b = nb; this.nb = b; b = this.b;
+    }
+    var j = 0, best = -1; for (var i5 = 0; i5 < T; i5++) if (b[i5] > best) { best = b[i5]; j = i5; }
+    var lo = Math.max(0, j - 3), hi = Math.min(T, j + 4), sw = 0, sp = 0;
+    for (var i6 = lo; i6 < hi; i6++) { sw += b[i6]; sp += b[i6] * i6; }
+    var pos = sp / sw, c = 0;
+    for (var i7 = Math.max(0, j - this.W); i7 < Math.min(T, j + this.W + 1); i7++) c += b[i7];
+    this.conf = c;
+    if (!silent) {
+      var s = 0, o2 = j * 12; for (var p2 = 0; p2 < 12; p2++) s += R[o2 + p2] * chroma[p2];
+      this.sims.push(s); if (this.sims.length > 6) this.sims.shift();
+      var m = 0; for (var q = 0; q < this.sims.length; q++) m += this.sims[q]; this.match = m / this.sims.length;
+      this.hist.push(pos); if (this.hist.length > 24) this.hist.shift();
+      if (this.hist.length === 24 && this.conf > 0.6) {
+        var mx = 0, sum = 0;
+        for (var h = 1; h < 24; h++) { var inc = this.hist[h] - this.hist[h - 1]; mx = Math.max(mx, Math.abs(inc)); sum += inc; }
+        if (mx < 4) { var rate = sum / 23; if (rate > 0.3 && rate < 2.5) this.r = Math.min(1.8, Math.max(0.5, 0.95 * this.r + 0.05 * rate)); }
+      }
+    }
+    this.j = j;
+    return pos;
+  };
+
+  /* ------------------------------------------------------------ aligner with several tempo hypotheses at once
+     (ref frames advanced per microphone frame: 0.55 ... 8).  Rubato, a deliberately slow passage, a hesitation or a different overall speed
+     do not have to be learned first: the notes themselves decide which tempo is right. */
+  function MultiAligner(ref, o) {
+    o = o || {};
+    var T = ref.T, K, i, k, s;
+    this.ref = ref; this.T = T; this.beta = o.beta || 10; this.epsObs = o.epsObs === undefined ? 0.5 : o.epsObs; this.slip = o.slip === undefined ? 0.003 : o.slip; this.stay = o.stay || 0.95;
+    this.rhoF = Math.exp(-1 / ((o.lamFwd || 0.25) * ref.barFrames)); this.rhoB = Math.exp(-1 / ((o.lamBack || 0.5) * ref.barFrames));
+    this.W = Math.floor(0.75 * ref.barFrames);
+    var rates = o.rates || []; if (!rates.length) for (i = 0; i < 11; i++) rates.push(0.55 * Math.pow(1.35, i));
+    this.rates = rates; K = this.K = rates.length; this.kern = [];
+    var psd = o.priorSd === undefined ? 0.6 : o.priorSd; this.pull = o.pull === undefined ? 0.01 : o.pull;      // soft preference for 'about the written tempo'
+    this.prior = rates.map(function (r0) { return psd > 0 ? Math.exp(-0.5 * Math.pow(Math.log(r0) / psd, 2)) : 1; });
+    this.priorPow = this.prior.map(function (pv) { return Math.pow(pv, this.pull); }, this);
+    for (i = 0; i < K; i++) {
+      var r = rates[i], sd = Math.max(0.25, 0.18 * r), lo = Math.max(0, Math.floor(r - 3 * sd)), hi = Math.ceil(r + 3 * sd) + 1, w = [], sum = 0;
+      for (k = lo; k <= hi; k++) { var v = Math.exp(-0.5 * Math.pow((k - r) / sd, 2)); w.push(v); sum += v; }
+      this.kern.push({ lo: lo, w: w.map(function (v2) { return v2 / sum; }) });
+    }
+    this.B = new Float64Array(K * T); this.N = new Float64Array(K * T); this.marg = new Float64Array(T); this.fw = new Float64Array(T); this.bw = new Float64Array(T); this.lik = new Float64Array(T);
+    s = Math.floor((o.startBar || 0) * ref.barFrames); var n0 = Math.min(6, T - s);
+    var psum = 0; for (i = 0; i < K; i++) psum += this.prior[i];
+    for (i = 0; i < K; i++) for (k = s; k < s + n0; k++) this.B[i * T + k] = this.prior[i] / (psum * n0);
+    this.r = 1; this.sims = []; this.match = 0; this.conf = 0; this.j = s; this.rateHist = [];
+  }
+  MultiAligner.prototype.step = function (chroma, silent) {
+    var T = this.T, K = this.K, R = this.ref.R, B = this.B, N = this.N, i, j, k, p;
+    if (!silent) {
+      N.fill(0);
+      for (i = 0; i < K; i++) {                                    // 1) every tempo hypothesis moves forward by its own speed
+        var kn = this.kern[i], lo = kn.lo, w = kn.w, base = i * T;
+        for (k = 0; k < w.length; k++) { var wk = w[k], sh = lo + k; if (sh >= T) break; for (j = sh; j < T; j++) N[base + j] += wk * B[base + j - sh]; }
+      }
+      var st = this.stay, sw = 0.5 * (1 - st);                       // 2) the tempo may change a little from frame to frame
+      for (j = 0; j < T; j++) {
+        for (i = 0; i < K; i++) {
+          var v = N[i * T + j] * st;
+          v += sw * (i > 0 ? N[(i - 1) * T + j] : N[j]);
+          v += sw * (i < K - 1 ? N[(i + 1) * T + j] : N[(K - 1) * T + j]);
+          B[i * T + j] = v;
+        }
+      }
+      var marg = this.marg; for (j = 0; j < T; j++) { var m0 = 0; for (i = 0; i < K; i++) m0 += B[i * T + j]; marg[j] = m0; }
+      var fw = this.fw, bw = this.bw, rf = this.rhoF, rb = this.rhoB, acc = 0;
+      for (j = 0; j < T; j++) { acc = (1 - rf) * marg[j] + rf * acc; fw[j] = acc; }
+      acc = 0; for (j = T - 1; j >= 0; j--) { acc = (1 - rb) * marg[j] + rb * acc; bw[j] = acc; }
+      var slip = this.slip, tot = 0, lik = this.lik;
+      for (j = 0; j < T; j++) {                                    // 3) occasional jump (slip) + how well the sound matches each reference frame
+        var sim = 0, o2 = j * 12; for (p = 0; p < 12; p++) sim += R[o2 + p] * chroma[p];
+        var l = (1 - this.epsObs) * Math.exp(this.beta * (sim - 1)) + this.epsObs, sp = 0.5 * ((j > 0 ? fw[j - 1] : 0) + (j < T - 1 ? bw[j + 1] : 0)) * slip / K;
+        for (i = 0; i < K; i++) { var q = i * T + j, nv = ((1 - slip) * B[q] + sp) * l * this.priorPow[i]; B[q] = nv; tot += nv; }
+      }
+      if (!(tot > 0)) tot = 1;
+      for (j = 0; j < K * T; j++) B[j] /= tot;
+    }
+    var marg2 = this.marg, best = -1, jb = 0;
+    for (j = 0; j < T; j++) { var m1 = 0; for (i = 0; i < K; i++) m1 += B[i * T + j]; marg2[j] = m1; if (m1 > best) { best = m1; jb = j; } }
+    var lo2 = Math.max(0, jb - 3), hi2 = Math.min(T, jb + 4), sw2 = 0, sp2 = 0;
+    for (j = lo2; j < hi2; j++) { sw2 += marg2[j]; sp2 += marg2[j] * j; }
+    var pos = sp2 / sw2, c = 0; for (j = Math.max(0, jb - this.W); j < Math.min(T, jb + this.W + 1); j++) c += marg2[j];
+    this.conf = c;
+    var rs = 0, rw = 0; for (i = 0; i < K; i++) { var ls = 0; for (j = Math.max(0, jb - 4); j < Math.min(T, jb + 5); j++) ls += B[i * T + j]; rs += ls * this.rates[i]; rw += ls; }
+    if (rw > 0) this.r = rs / rw;
+    if (!silent) {
+      var sm = 0, o3 = jb * 12; for (p = 0; p < 12; p++) sm += R[o3 + p] * chroma[p];
+      this.sims.push(sm); if (this.sims.length > 6) this.sims.shift();
+      var mm = 0; for (k = 0; k < this.sims.length; k++) mm += this.sims[k]; this.match = mm / this.sims.length;
+    }
+    this.j = jb; return pos;
+  };
+
+  /* ------------------------------------------------------------ page-turn controller */
+  function PageTurner(order, barPage, o) {
+    o = o || {};
+    this.order = order; this.frac = o.frac === undefined ? 0.55 : o.frac; this.leadS = o.leadS === undefined ? 0.10 : o.leadS;
+    this.confThr = 0.5; this.matchThr = 0.5; this.stableS = 1.2; this.dt = REF_HOP / REF_SR;
+    this.previewBars = o.previewBars === undefined ? 2 : o.previewBars; this.previewed = -1; this.previews = [];
+    this.bad = 0; this.graceS = 1.5; this.hist = []; this.histN = Math.max(1, Math.floor(1 / this.dt));
+    this.runs = []; var self = this;
+    order.forEach(function (lab, i) { var p = barPage[lab]; var l = self.runs[self.runs.length - 1]; if (l && l[2] === p) l[1] = i; else self.runs.push([i, i, p]); });
+    this.runOf = new Int32Array(order.length);
+    this.runs.forEach(function (r, k) { for (var i = r[0]; i <= r[1]; i++) self.runOf[i] = k; });
+    this.disp = 0; this.stable = 0; this.events = [];
+  }
+  PageTurner.prototype.displayedPage = function () { return this.runs[this.disp][2]; };
+  PageTurner.prototype._turn = function (t, kind, to, pos) { this.events.push({ t: t, kind: kind, from: this.disp, to: to, pos: pos }); this.disp = to; return kind; };
+  PageTurner.prototype.update = function (t, pos, bps, conf, silent, match) {
+    if (!silent) {
+      this.hist.push(match); if (this.hist.length > this.histN) this.hist.shift();
+      var recent = 0; for (var i = 0; i < this.hist.length; i++) recent += this.hist[i]; recent /= this.hist.length;
+      if (conf >= this.confThr && match >= this.matchThr) { this.stable += this.dt; this.bad = 0; }
+      else if (conf >= 0.9 && match >= 0.1 && recent >= 0.45 && this.bad < this.graceS) this.bad += this.dt;
+      else { this.stable = 0; this.bad = 0; }
+    }
+    if (this.stable < this.stableS || silent) return null;
+    var n = this.order.length, cur = this.runOf[Math.min(Math.max(Math.floor(pos), 0), n - 1)];
+    if (cur === this.disp && this.disp < this.runs.length - 1) {
+      var last = this.runs[this.disp][1];
+      if (this.previewBars > 0 && this.previewed !== this.disp && last + 1 - this.previewBars <= pos && pos < last + 1) {
+        this.previewed = this.disp; this.previews.push({ t: t, from: this.disp, to: this.disp + 1, pos: pos, firstBar: this.runs[this.disp + 1][0] });
+        return 'preview';
+      }
+      if (pos + bps * this.leadS >= last + this.frac && pos < last + 1) return this._turn(t, 'turn', this.disp + 1, pos);
+      return null;
+    }
+    if (cur === this.disp - 1 && pos < this.runs[cur][1] + 1) return null;
+    if (cur !== this.disp) return this._turn(t, 'resync', cur, pos);
+    return null;
+  };
+
+  /* ------------------------------------------------------------ glue */
+  function AutoPager(pkg, opts) {
+    opts = opts || {};
+    this.sr = opts.sampleRate; this.ref = new Reference(pkg); if (opts.barSec) this.ref = this.ref.warp(opts.barSec);
+    this.ex = new ChromaExtractor(this.sr); this.gate = new SilenceGate();
+    this.al = opts.singleTempo ? new Aligner(this.ref, { startBar: opts.startBar || 0 }) : new MultiAligner(this.ref, Object.assign({ startBar: opts.startBar || 0 }, opts.alignerOpts || {}));
+    this.turner = new PageTurner(pkg.order, pkg.bar_page, { frac: opts.frac, leadS: opts.leadS, previewBars: opts.previewBars });
+    this.latency = this.ex.nfft / 2 / this.sr + 0.02; this.n = 0; this.onEvent = opts.onEvent || null; this.trace = []; this.prevBarSec = opts.barSec || null; this.nominal = new Reference(pkg);
+    this.last = { pos: 0, conf: 0, match: 0, silent: true, t: 0 };
+  }
+  AutoPager.prototype.feed = function (chunk) {
+    var frames = this.ex.feed(chunk), out = [];
+    for (var f = 0; f < frames.length; f++) {
+      var t = (this.n * this.ex.hop + this.ex.nfft) / this.sr; this.n++;
+      var silent = this.gate.silent(frames[f].rms), posF = this.al.step(frames[f].chroma, silent);
+      var bars = this.ref.barsAt(posF), bps = this.al.r / this.ref.barSeconds(bars), posNow = silent ? bars : bars + bps * this.latency;
+      var res = this.turner.update(t, posNow, bps, this.al.conf, silent, this.al.match);
+      this.trace.push([t, bars, this.al.conf, silent ? 1 : 0]); if (this.trace.length > 200000) this.trace.shift();
+      this.last = { pos: posNow, conf: this.al.conf, match: this.al.match, silent: silent, t: t, rms: frames[f].rms };
+      if (res) { var ev = { t: t, kind: res, pos: posNow, page: res === 'preview' ? this.turner.runs[this.turner.disp + 1][2] : this.turner.displayedPage() }; out.push(ev); if (this.onEvent) this.onEvent(ev); }
+    }
+    return out;
+  };
+
+  // Learn the player's tempo WHILE following (no separate learning run): for every bar that was clearly followed from its start to its end
+  // (confident, sound all the way, not a pause or a stumble-and-stop) the measured duration is blended into barSec (slowly: 30 %).
+  AutoPager.prototype.learnFromPlaying = function (state, o) {
+    o = o || {}; var nom = this.nominal, nB = nom.nBars, tr = this.trace;
+    var barSec = state && state.barSec && state.barSec.length === nB ? state.barSec.slice() : null, obs = state && state.obs && state.obs.length === nB ? state.obs.slice() : null;
+    if (!barSec) { barSec = []; for (var k0 = 0; k0 < nB; k0++) barSec.push(nom.barStart[k0 + 1] - nom.barStart[k0]); }
+    if (!obs) { obs = new Array(nB).fill(0); }
+    var cross = new Array(nB + 1).fill(null), minConf = new Array(nB + 1).fill(1), silentSec = new Array(nB + 1).fill(0), lastB = 0, dt = this.ex.hop / this.sr;
+    for (var i = 0; i < tr.length; i++) {
+      var t = tr[i][0], pos = tr[i][1], conf = tr[i][2], sil = tr[i][3], b = Math.min(Math.floor(pos), nB);
+      if (b < lastB) { for (var z = b + 1; z <= nB; z++) cross[z] = null; }          // a replay: forget what came after this point
+      for (var q = Math.max(1, lastB); q <= b; q++) if (cross[q] === null) cross[q] = t;
+      if (cross[0] === null) cross[0] = t;
+      lastB = Math.max(0, b);
+      if (b >= 0 && b < nB) { if (conf < minConf[b]) minConf[b] = conf; if (sil) silentSec[b] += dt; }
+    }
+    var updated = 0, first = -1, last = -1, win = o.win || 4, upd = new Array(nB).fill(null);
+    for (var k = 0; k < nB; k++) {                                                   // measure over a few bars at once: a single bar line is too noisy
+      var a0 = Math.max(0, k - 1), a1 = Math.min(nB, a0 + win); a0 = Math.max(0, a1 - win);
+      if (a1 - a0 < Math.min(win, nB) || cross[a0] === null || cross[a1] === null) continue;
+      var secs = cross[a1] - cross[a0], expSum = 0, silS = 0, mc = 1; for (var m = a0; m < a1; m++) { expSum += barSec[m]; silS += silentSec[m]; mc = Math.min(mc, minConf[m]); }
+      if (mc < 0.6 || silS > 0.25 * secs || secs > 8 * expSum || secs < 0.125 * expSum) continue;
+      upd[k] = secs * barSec[k] / expSum;
+    }
+    for (var k2 = 0; k2 < nB; k2++) {
+      if (upd[k2] === null) continue;
+      var rate = Math.max(o.minRate || 0.25, 1 / (obs[k2] + 1.5)), expect = barSec[k2];   // the first time counts a lot, later ones refine slowly
+      barSec[k2] = Math.exp((1 - rate) * Math.log(expect) + rate * Math.log(upd[k2])); obs[k2]++; updated++; if (first < 0) first = k2; last = k2;
+    }
+    return { barSec: barSec, obs: obs, updated: updated, firstBar: first, lastBar: last + 1 };
+  };
+
+  var API = { ChromaExtractor: ChromaExtractor, SilenceGate: SilenceGate, Reference: Reference, Aligner: Aligner, MultiAligner: MultiAligner, learnTempo: learnTempo, PageTurner: PageTurner, AutoPager: AutoPager };
+  if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.AutoPage = API;
+})(typeof window !== 'undefined' ? window : this);
+
+</script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var pkg = null, pager = null, ctx = null, stream = null, node = null, running = false, wake = null;
+  var imgs = [], pages = {}, shownPage = null, feeder = null;
+  var logLines = [], tempo = null, learning = null;
+  function log(s) { logLines.push(s); if (logLines.length > 40) logLines.shift(); $('log').textContent = logLines.slice(-6).join('\n'); }
+
+  /* ---------- score pictures ---------- */
+  function pageRegion(p) {                       // the part of the picture that holds page p (union of its bars)
+    if (pages[p]) return pages[p];
+    var r = null;
+    pkg.order.forEach(function (lab) {
+      if (pkg.bar_page[lab] !== p) return;
+      var b = pkg.rects[lab]; if (!b) return;
+      if (!r) r = { img: b.img, x0: b.x0, x1: b.x1, y0: b.y0, y1: b.y1 };
+      else if (r.img === b.img) { r.x0 = Math.min(r.x0, b.x0); r.x1 = Math.max(r.x1, b.x1); r.y0 = Math.min(r.y0, b.y0); r.y1 = Math.max(r.y1, b.y1); }
+    });
+    if (r) { r.x0 -= 8; r.y0 -= 8; r.x1 += 8; r.y1 += 8; }
+    pages[p] = r; return r;
+  }
+  function fit(canvas) {
+    var d = window.devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight;
+    if (canvas.width !== Math.round(w * d) || canvas.height !== Math.round(h * d)) { canvas.width = Math.round(w * d); canvas.height = Math.round(h * d); }
+    return d;
+  }
+  var view = null;                                // how the current page is placed on the canvas
+  function drawPage(playBar, playFrac) {
+    var c = $('page'), g = c.getContext('2d'), d = fit(c);
+    g.fillStyle = '#0d0e11'; g.fillRect(0, 0, c.width, c.height);
+    var reg = shownPage != null ? pageRegion(shownPage) : null;
+    if (!reg || !imgs[reg.img] || !imgs[reg.img].complete) { view = null; return; }
+    var w = reg.x1 - reg.x0, h = reg.y1 - reg.y0, s = Math.min(c.width / w, c.height / h) * 0.98;
+    var ox = (c.width - w * s) / 2, oy = (c.height - h * s) / 2;
+    view = { s: s, ox: ox, oy: oy, reg: reg };
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(imgs[reg.img], reg.x0, reg.y0, w, h, ox, oy, w * s, h * s);
+    var b = playBar != null ? pkg.rects[playBar] : null;
+    if (b && b.img === reg.img && pkg.bar_page[playBar] === shownPage) {
+    }
+  }
+  function showPage(p) { shownPage = p; $('pg').textContent = 'p.' + p; $('msg').hidden = true; drawPage(null, 0); }
+
+  function showPreview(label, page) {
+    var b = pkg.rects[label]; if (!b || !imgs[b.img]) return;
+    var c = $('pvc'), g = c.getContext('2d'), w = b.x1 - b.x0, h = b.y1 - b.y0, cw = 560;
+    c.width = cw; c.height = Math.round(cw * h / w); g.fillStyle = '#f4f1e8'; g.fillRect(0, 0, c.width, c.height);
+    g.drawImage(imgs[b.img], b.x0, b.y0, w, h, 0, 0, c.width, c.height);
+    $('pvt').textContent = '次のページ p.' + page; $('pvb').textContent = label + ' 小節目';
+    $('preview').classList.add('on');
+  }
+  function hidePreview() { $('preview').classList.remove('on'); }
+
+  /* ---------- events from the follower ---------- */
+  function onEvent(ev) {
+    if (ev.kind === 'preview') {
+      var run = pager.turner.runs[pager.turner.disp + 1], lab = pkg.order[run[0]];
+      showPreview(lab, ev.page); log('予告: ' + lab + '小節目 (p.' + ev.page + ')');
+    } else {
+      hidePreview(); showPage(ev.page); log((ev.kind === 'turn' ? 'めくり' : '位置を修正') + ' → p.' + ev.page + ' (' + ev.t.toFixed(1) + 's)');
+    }
+  }
+
+  /* ---------- audio ---------- */
+  var workletCode = 'class P extends AudioWorkletProcessor{process(i){var c=i[0]&&i[0][0];if(c)this.port.postMessage(c.slice(0));return true;}}registerProcessor("tap",P);';
+  function makePager() {
+    var sb = +$('startbar').value;
+    pager = new AutoPage.AutoPager(pkg, { sampleRate: ctx.sampleRate, startBar: sb, frac: +$('frac').value / 100, previewBars: +$('prevbars').value, barSec: tempo ? tempo.barSec : null, singleTempo: $('tempomode').value !== 'wide', onEvent: onEvent });
+    showPage(pkg.bar_page[pkg.order[sb]]); hidePreview();
+  }
+  function start() {
+    if (running) return;
+    var AC = window.AudioContext || window.webkitAudioContext; ctx = new AC();
+    if (ctx.resume) ctx.resume();
+    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } }).then(function (s) {
+      stream = s; makePager();
+      var src = ctx.createMediaStreamSource(s), sink = ctx.createGain(); sink.gain.value = 0; sink.connect(ctx.destination);
+      var feed = function (chunk) { if (pager) pager.feed(chunk); };
+      if (ctx.audioWorklet) {
+        var url = URL.createObjectURL(new Blob([workletCode], { type: 'application/javascript' }));
+        return ctx.audioWorklet.addModule(url).then(function () {
+          node = new AudioWorkletNode(ctx, 'tap'); node.port.onmessage = function (e) { feed(e.data); }; src.connect(node); node.connect(sink);
+        });
+      }
+      node = ctx.createScriptProcessor(2048, 1, 1); node.onaudioprocess = function (e) { feed(new Float32Array(e.inputBuffer.getChannelData(0))); }; src.connect(node); node.connect(sink);
+    }).then(function () {
+      running = true; $('go').textContent = '止める'; $('go').classList.add('on'); log('聞いています (' + ctx.sampleRate + ' Hz)');
+      if (navigator.wakeLock) navigator.wakeLock.request('screen').then(function (l) { wake = l; }).catch(function () {});
+    }).catch(function (e) { log('マイクを使えません: ' + (e && e.message || e)); $('msg').hidden = false; $('msg').textContent = 'マイクの許可が必要です。Safari の設定で、このサイトのマイクを許可してください。'; });
+  }
+  function stop() {
+    running = false; if (feeder) { clearInterval(feeder); feeder = null; }
+    try { if (node) node.disconnect(); if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); if (ctx) ctx.close(); if (wake) wake.release(); } catch (e) {}
+    node = stream = ctx = wake = null; $('go').textContent = '聞き始める'; $('go').classList.remove('on'); log('止めました');
+  }
+  function testFile(file) {                       // play a recording through the speakers and feed it to the follower in real time
+    if (running) stop();
+    var AC = window.AudioContext || window.webkitAudioContext; ctx = new AC(); if (ctx.resume) ctx.resume();
+    file.arrayBuffer().then(function (ab) { return ctx.decodeAudioData(ab); }).then(function (buf) {
+      makePager(); var data = buf.getChannelData(0), pos = 0, t0 = ctx.currentTime, srcn = ctx.createBufferSource();
+      srcn.buffer = buf; srcn.connect(ctx.destination); srcn.start();
+      running = true; $('go').textContent = '止める'; $('go').classList.add('on'); log('録音を再生中 ' + buf.duration.toFixed(0) + ' s');
+      feeder = setInterval(function () {
+        var upto = Math.min(data.length, Math.floor((ctx.currentTime - t0) * buf.sampleRate));
+        if (upto > pos) { pager.feed(data.subarray(pos, upto)); pos = upto; }
+        if (pos >= data.length) { clearInterval(feeder); feeder = null; }
+      }, 30);
+      srcn.onended = function () { setTimeout(stop, 800); };
+    }).catch(function (e) { log('読み込めません: ' + e); });
+  }
+
+  /* ---------- status loop ---------- */
+  function tick() {
+    if (pager && running) {
+      var L = pager.last, n = pkg.order.length, idx = Math.min(Math.max(Math.floor(L.pos), 0), n - 1), lab = pkg.order[idx];
+      $('bar').textContent = L.silent && pager.n < 12 ? '–' : lab;
+      var m = $('meter'); m.firstElementChild.style.width = Math.min(100, Math.round(Math.sqrt(L.rms || 0) * 220)) + '%';
+      m.classList.toggle('lost', !L.silent && L.conf < 0.5);
+      drawPage(lab, L.pos - idx);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  /* ---------- manual page change (pedal keys, buttons) ---------- */
+  var maxPage = 1;
+  function manual(delta) { var p = Math.min(maxPage, Math.max(1, (shownPage || 1) + delta)); hidePreview(); showPage(p); }
+  $('next').onclick = function () { manual(1); }; $('prev').onclick = function () { manual(-1); };
+  document.addEventListener('keydown', function (e) {
+    if (e.target && /INPUT|SELECT/.test(e.target.tagName)) return;
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { manual(1); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { manual(-1); e.preventDefault(); }
+  });
+  $('go').onclick = function () { running ? stop() : start(); };
+  $('filebtn').onclick = function () { $('file').click(); };
+  $('file').onchange = function () { if (this.files[0]) testFile(this.files[0]); this.value = ''; };
+  $('frac').oninput = function () { $('fracv').textContent = this.value + '%'; if (pager) pager.turner.frac = +this.value / 100; };
+  $('prevbars').oninput = function () { $('prevv').textContent = this.value; if (pager) pager.turner.previewBars = +this.value; };
+  window.addEventListener('resize', function () { drawPage(null, 0); });
+
+
+  /* ---------- learn the tempo from one straight play-through ---------- */
+  function sig() { return 'tempo:' + (pkg.title || '') + ':' + pkg.order.length + ':' + pkg.T; }
+  function showTempoInfo() {
+    $('tempoinfo').textContent = tempo ? 'テンポ: 学習済み（' + pkg.order[tempo.firstBar] + '〜' + pkg.order[Math.min(tempo.lastBar, pkg.order.length) - 1] + ' 小節、' + new Date(tempo.at).toLocaleDateString('ja-JP') + '）'
+      : 'テンポ: 未学習（「弾いて覚える」で、通して1回弾くと、速さの変化を覚えます）';
+  }
+  function applyLearned(perf, startIdx) {
+    $('msg').hidden = false; $('msg').textContent = '解析中です…（数秒かかります）'; $('learnbtn').disabled = true;
+    setTimeout(function () {
+      try {
+        var L = AutoPage.learnTempo(new AutoPage.Reference(pkg), perf, startIdx, function (p) { $('msg').textContent = '解析中です… ' + Math.round(p * 100) + '%'; });
+        tempo = { barSec: L.barSec, firstBar: L.firstBar, lastBar: L.lastBar, at: Date.now() }; store.putKey(sig(), JSON.stringify(tempo));
+        $('msg').textContent = '覚えました（' + pkg.order[L.firstBar] + '〜' + pkg.order[Math.min(L.lastBar, pkg.order.length) - 1] + ' 小節）。「聞き始める」を押してください。';
+        log('テンポを覚えました');
+      } catch (e) { $('msg').textContent = '覚えられませんでした: ' + (e && e.message || e); }
+      $('learnbtn').disabled = false; showTempoInfo(); setTimeout(function () { if (!running) { $('msg').hidden = true; } }, 4000);
+    }, 50);
+  }
+  function startLearn() {
+    if (running) stop();
+    var AC = window.AudioContext || window.webkitAudioContext; ctx = new AC(); if (ctx.resume) ctx.resume();
+    var startIdx = +$('startbar').value, ex = new AutoPage.ChromaExtractor(ctx.sampleRate), perf = { chroma: [], rms: [] };
+    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } }).then(function (s) {
+      stream = s; var src = ctx.createMediaStreamSource(s), sink = ctx.createGain(); sink.gain.value = 0; sink.connect(ctx.destination);
+      var feed = function (chunk) { var fr = ex.feed(chunk); for (var i = 0; i < fr.length; i++) { perf.chroma.push(fr[i].chroma); perf.rms.push(fr[i].rms); } };
+      var go = function () { learning = { perf: perf, startIdx: startIdx, t0: Date.now() }; $('learnbtn').textContent = '覚え終わる'; $('learnbtn').classList.add('on'); $('go').disabled = true;
+        $('msg').hidden = false; $('msg').textContent = '通して弾いてください。弾き終わったら「覚え終わる」を押します。';
+        learning.timer = setInterval(function () { var sec = Math.round((Date.now() - learning.t0) / 1000); $('msg').textContent = '覚えています… ' + Math.floor(sec / 60) + ':' + ('0' + sec % 60).slice(-2) + '  （弾き終わったら「覚え終わる」）'; }, 500); };
+      if (ctx.audioWorklet) {
+        var url = URL.createObjectURL(new Blob([workletCode], { type: 'application/javascript' }));
+        return ctx.audioWorklet.addModule(url).then(function () { node = new AudioWorkletNode(ctx, 'tap'); node.port.onmessage = function (e) { feed(e.data); }; src.connect(node); node.connect(sink); go(); });
+      }
+      node = ctx.createScriptProcessor(2048, 1, 1); node.onaudioprocess = function (e) { feed(new Float32Array(e.inputBuffer.getChannelData(0))); }; src.connect(node); node.connect(sink); go();
+    }).catch(function (e) { log('マイクを使えません: ' + (e && e.message || e)); });
+  }
+  function endLearn() {
+    var L = learning; learning = null; clearInterval(L.timer);
+    try { if (node) node.disconnect(); if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); if (ctx) ctx.close(); } catch (e) {}
+    node = stream = ctx = null; $('learnbtn').textContent = '通して弾いて覚える（上級）'; $('learnbtn').classList.remove('on'); $('go').disabled = false;
+    applyLearned(L.perf, L.startIdx);
+  }
+  function learnFromFile(file) {
+    var AC = window.AudioContext || window.webkitAudioContext, c = new AC();
+    file.arrayBuffer().then(function (ab) { return c.decodeAudioData(ab); }).then(function (buf) {
+      var d = buf.getChannelData(0), ex = new AutoPage.ChromaExtractor(buf.sampleRate), perf = { chroma: [], rms: [] };
+      for (var i = 0; i < d.length; i += 8192) { var fr = ex.feed(d.subarray(i, i + 8192)); for (var k = 0; k < fr.length; k++) { perf.chroma.push(fr[k].chroma); perf.rms.push(fr[k].rms); } }
+      c.close(); applyLearned(perf, +$('startbar').value);
+    }).catch(function (e) { log('読み込めません: ' + e); });
+  }
+  $('tempomode').onchange = function () { store.putKey('mode:' + (pkg.title || '') + ':' + pkg.order.length, this.value); if (running) { log('テンポの追い方を変えました。いったん止めて、もう一度「聞き始める」を押してください。'); } };
+  $('learnbtn').onclick = function () { learning ? endLearn() : startLearn(); };
+  $('learnfilebtn').onclick = function () { $('learnfile').click(); };
+  $('learnfile').onchange = function () { if (this.files[0]) learnFromFile(this.files[0]); this.value = ''; };
+  $('learnreset').onclick = function () { tempo = null; store.putKey(sig(), ''); showTempoInfo(); log('覚えたテンポを消しました'); };
+
+  /* ---------- load ---------- */
+  var tickOn = false;
+  function boot(p, save) {
+    if (running) stop();
+    pkg = p; pages = {}; shownPage = null; pager = null; $('title').textContent = p.title || '譜めくりくん';
+    maxPage = Math.max.apply(null, Object.keys(p.bar_page).map(function (k) { return p.bar_page[k]; }));
+    var seen = {}, sel = $('startbar'); sel.innerHTML = '';
+    p.order.forEach(function (lab, i) { if (!seen[lab]) { seen[lab] = 1; var o = document.createElement('option'); o.value = i; o.textContent = lab + ' 小節から'; sel.appendChild(o); } });
+    $('msg').hidden = false; $('msg').textContent = '楽譜を読み込んでいます…'; $('bar').textContent = '–'; hidePreview();
+    var n = 0; imgs = p.images.map(function (f) { var im = new Image(); im.onload = function () { if (++n === p.images.length) { showPage(p.bar_page[p.order[0]]); $('go').disabled = false; } }; im.src = f; return im; });
+    if (save) store.put(save);
+    tempo = null; $('learnbtn').disabled = false; showTempoInfo();
+    store.getKey('mode:' + (p.title || '') + ':' + p.order.length, function (m) { if (m === 'wide' || m === 'single') $('tempomode').value = m; });
+    store.getKey(sig(), function (t) { if (t) { try { tempo = JSON.parse(t); if (tempo.barSec.length !== p.order.length) tempo = null; } catch (e) { tempo = null; } showTempoInfo(); } });
+    if (!tickOn) { tickOn = true; requestAnimationFrame(tick); }
+  }
+  /* the score is kept on the iPad itself (IndexedDB), nothing is uploaded anywhere */
+  var store = {
+    open: function (cb) { try { var r = indexedDB.open('fumekuri', 1); r.onupgradeneeded = function () { r.result.createObjectStore('kv'); }; r.onsuccess = function () { cb(r.result); }; r.onerror = function () { cb(null); }; } catch (e) { cb(null); } },
+    put: function (text) { store.open(function (db) { if (!db) return; try { db.transaction('kv', 'readwrite').objectStore('kv').put(text, 'last'); } catch (e) {} }); },
+    putKey: function (k, v) { store.open(function (db) { if (!db) return; try { db.transaction('kv', 'readwrite').objectStore('kv').put(v, k); } catch (e) {} }); },
+    getKey: function (k, cb) { store.open(function (db) { if (!db) return cb(null); try { var q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = function () { cb(q.result || null); }; q.onerror = function () { cb(null); }; } catch (e) { cb(null); } }); },
+    get: function (cb) { store.open(function (db) { if (!db) return cb(null); try { var q = db.transaction('kv').objectStore('kv').get('last'); q.onsuccess = function () { cb(q.result || null); }; q.onerror = function () { cb(null); }; } catch (e) { cb(null); } }); }
+  };
+  function loadText(text, save) { try { boot(JSON.parse(text), save ? text : null); } catch (e) { $('msg').hidden = false; $('msg').textContent = 'この楽譜データは読めません: ' + e; } }
+  $('openbtn').onclick = function () { $('score').click(); };
+  $('score').onchange = function () { var f = this.files[0]; this.value = ''; if (f) f.text().then(function (t) { loadText(t, true); }); };
+  var inline = document.getElementById('pkgdata');
+  if (inline) boot(JSON.parse(inline.textContent));
+  else store.get(function (t) {
+    if (t) return loadText(t, false);
+    fetch('package.json').then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (p) { boot(p); })
+      .catch(function () { $('msg').innerHTML = '「楽譜を開く」を押して、楽譜データ（.json）を選んでください。'; });
+  });
+})();
+</script>
+</body>
+</html>
