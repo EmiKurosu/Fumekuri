@@ -21,7 +21,7 @@
   header { display: flex; align-items: center; gap: 14px; padding-top: 10px; min-height: 52px; }
   header h1 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: .02em; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .readout { display: flex; align-items: baseline; gap: 8px; font-variant-numeric: tabular-nums; }
-  .readout b { font-size: 30px; font-weight: 650; line-height: 1; min-width: 2.2ch; text-align: right; }
+  .readout b { font-size: 30px; display: inline-block; font-weight: 650; line-height: 1; min-width: 2.2ch; text-align: right; }
   .readout span { color: var(--dim); font-size: 13px; }
   .meter { width: 70px; height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
   .meter i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .08s linear; }
@@ -81,9 +81,9 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v17</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v19</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
-  <div class="readout" aria-live="off"><span>小節</span><b id="bar">–</b><span id="pg">p.–</span><span id="cf" title="追従の確かさ"></span></div>
+  <div class="readout" aria-live="off"><span>小節</span><b id="bar">–</b><span id="pg">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;min-width:6.5ch;text-align:right;font-variant-numeric:tabular-nums"></span></div>
 </header>
 <main>
   <canvas id="page"></canvas>
@@ -91,7 +91,7 @@
   <div id="preview" aria-live="polite"><div class="cap"><span id="pvt">次のページ</span><span id="pvb"></span></div><canvas id="pvc"></canvas></div>
 </main>
 <footer>
-  <button id="go" disabled>聞き始める</button>
+  <button id="go" disabled>弾き始める</button>
   <select id="startbar" aria-label="弾き始める小節"></select>
   <span class="spacer"></span>
   <label style="color:var(--dim);font-size:13px"><input type="file" id="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.mp4,.mov" hidden><button id="filebtn" type="button">録音で試す</button></label>
@@ -108,7 +108,7 @@
       <button type="button" id="learnfilebtn">録音ファイルから覚える（上級）</button><input type="file" id="learnfile" accept="audio/*" hidden>
       <button type="button" id="learnreset">覚えたテンポを消す</button>
       <button type="button" id="delscore">保存した楽譜を消す</button>
-      <small>自動でめくれないときは、楽譜を指で右へスワイプすると次のページ、左へスワイプすると前のページへ戻ります。ペダルの信号（→ / ← / PageDown / PageUp）でも手動でめくれます。</small>
+      <small>自動でめくれないときは、楽譜を指で左へスワイプすると次のページ、右へスワイプすると前のページへ戻ります。ペダルの信号（→ / ← / PageDown / PageUp）でも手動でめくれます。</small>
       <div id="log"></div>
     </div>
   </details>
@@ -752,7 +752,7 @@
   }
   function showPage(p) { shownPage = p; $('pg').textContent = 'p.' + p; $('msg').hidden = true; drawPage(null, 0); }
 
-  function labText(lab, idx) { return pkg.kind === 'song' ? (pkg.segText[idx] || '●') : lab; }
+  function labText(lab, idx) { return pkg.kind === 'song' ? '●' : lab; }
   function showPreview(label, page) {
     var b = pkg.rects[label]; if (!b || !imgs[b.img]) return;
     var c = $('pvc'), g = c.getContext('2d'), w = b.x1 - b.x0, h = b.y1 - b.y0, cw = 560;
@@ -783,27 +783,35 @@
   function start() {
     if (running) return;
     var AC = window.AudioContext || window.webkitAudioContext; ctx = new AC();
-    if (ctx.resume) ctx.resume();
+    var myCtx = ctx, stopped = false;
+    $('go').textContent = '準備中…'; showErr('マイクを準備しています…（許可の確認が出たら「許可」を押してください）');
+    var fail = function (e) { if (stopped) return; stopped = true; try { myCtx.close(); } catch (x) {} if (ctx === myCtx) ctx = null; running = false; $('go').textContent = '弾き始める'; $('go').classList.remove('on');
+      showErr('マイクを使えません（' + (e && (e.name || '') + ' ' + (e && e.message || e || '')).trim() + '）。Safari の「ぁあ」→「Webサイトの設定」でマイクを許可し、ページを再読み込みしてからもう一度押してください。'); };
+    var resumed = myCtx.resume ? myCtx.resume().catch(function () {}) : Promise.resolve();
     navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } }).then(function (s) {
+      if (stopped) { s.getTracks().forEach(function (t) { t.stop(); }); return; }
       stream = s; makePager();
-      var src = ctx.createMediaStreamSource(s), sink = ctx.createGain(); sink.gain.value = 0; sink.connect(ctx.destination);
+      var src = myCtx.createMediaStreamSource(s), sink = myCtx.createGain(); sink.gain.value = 0; sink.connect(myCtx.destination);
       var feed = function (chunk) { if (pager) pager.feed(chunk); };
-      if (ctx.audioWorklet) {
+      var useSP = function () { if (node) { try { node.disconnect(); } catch (x) {} } node = myCtx.createScriptProcessor(2048, 1, 1); node.onaudioprocess = function (e) { feed(new Float32Array(e.inputBuffer.getChannelData(0))); }; src.connect(node); node.connect(sink); };
+      var wl = null;
+      if (myCtx.audioWorklet) {
         var url = URL.createObjectURL(new Blob([workletCode], { type: 'application/javascript' }));
-        return ctx.audioWorklet.addModule(url).then(function () {
-          node = new AudioWorkletNode(ctx, 'tap'); node.port.onmessage = function (e) { feed(e.data); }; src.connect(node); node.connect(sink);
-        });
-      }
-      node = ctx.createScriptProcessor(2048, 1, 1); node.onaudioprocess = function (e) { feed(new Float32Array(e.inputBuffer.getChannelData(0))); }; src.connect(node); node.connect(sink);
-    }).then(function () {
-      running = true; $('go').textContent = '止める'; $('go').classList.add('on'); log('聞いています (' + ctx.sampleRate + ' Hz)');
-      if (navigator.wakeLock) navigator.wakeLock.request('screen').then(function (l) { wake = l; }).catch(function () {});
-    }).catch(function (e) { log('マイクを使えません: ' + (e && e.message || e)); $('msg').hidden = false; $('msg').textContent = 'マイクの許可が必要です。Safari の設定で、このサイトのマイクを許可してください。'; });
+        wl = Promise.race([myCtx.audioWorklet.addModule(url).then(function () { node = new AudioWorkletNode(myCtx, 'tap'); node.port.onmessage = function (e) { feed(e.data); }; src.connect(node); node.connect(sink); }), new Promise(function (_, ng) { setTimeout(function () { ng(new Error('worklet timeout')); }, 4000); })]).catch(function () { useSP(); });
+      } else { useSP(); wl = Promise.resolve(); }
+      return Promise.all([wl, resumed]).then(function () {
+        running = true; $('go').textContent = '止める'; $('go').classList.add('on'); $('msg').hidden = true; log('聞いています (' + myCtx.sampleRate + ' Hz)');
+        if (navigator.wakeLock) navigator.wakeLock.request('screen').then(function (l) { wake = l; }).catch(function () {});
+        // watchdog: no sound arrives at all -> try the other capture method once, then say so
+        setTimeout(function () { if (running && ctx === myCtx && pager && pager.n === 0) { try { useSP(); } catch (x) {} } }, 2500);
+        setTimeout(function () { if (running && ctx === myCtx && pager && pager.n === 0) showErr('マイクから音が入ってきません。他のアプリがマイクを使っていないか確かめ、ページを再読み込みしてから、もう一度「弾き始める」を押してください。'); }, 6000);
+      });
+    }).catch(fail);
   }
   function stop() {
     running = false; if (feeder) { clearInterval(feeder); feeder = null; }
     try { if (mediaEl) { mediaEl.pause(); mediaEl.remove(); mediaEl = null; } if (node) node.disconnect(); if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); if (ctx) ctx.close(); if (wake) wake.release(); } catch (e) {}
-    node = stream = ctx = wake = null; $('go').textContent = '聞き始める'; $('go').classList.remove('on'); log('止めました');
+    node = stream = ctx = wake = null; $('go').textContent = '弾き始める'; $('go').classList.remove('on'); log('止めました');
   }
   var mediaEl = null;
   function showErr(t) { $('msg').hidden = false; $('msg').textContent = t; log(t); }
@@ -869,16 +877,16 @@
     var p = Math.min(maxPage, Math.max(1, (shownPage || 1) + delta)); hidePreview(); showPage(p);
     if (pager) { var rs = pager.turner.runs; for (var k = 0; k < rs.length; k++) if (rs[k][2] === p) { pager.turner.disp = k; pager.turner.previewed = -1; break; } }   // the follower continues from the page you chose
   }
-  /* swipe on the score: to the right = next page, to the left = previous page */
+  /* swipe on the score: to the left = next page, to the right = previous page */
   (function () {
     var m = document.querySelector('main'), sx = null, sy = null, st = 0;
     m.addEventListener('touchstart', function (e) { if (e.touches.length !== 1) { sx = null; return; } sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); }, { passive: true });
     m.addEventListener('touchend', function (e) {
       if (sx === null) return; var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy; sx = null;
-      if (Date.now() - st < 900 && Math.abs(dx) > 60 && Math.abs(dx) > 1.6 * Math.abs(dy)) manual(dx > 0 ? 1 : -1);
+      if (Date.now() - st < 900 && Math.abs(dx) > 60 && Math.abs(dx) > 1.6 * Math.abs(dy)) manual(dx < 0 ? 1 : -1);
     }, { passive: true });
     var px = null; m.addEventListener('pointerdown', function (e) { if (e.pointerType === 'mouse') px = e.clientX; });
-    m.addEventListener('pointerup', function (e) { if (px === null) return; var dx = e.clientX - px; px = null; if (Math.abs(dx) > 80) manual(dx > 0 ? 1 : -1); });
+    m.addEventListener('pointerup', function (e) { if (px === null) return; var dx = e.clientX - px; px = null; if (Math.abs(dx) > 80) manual(dx < 0 ? 1 : -1); });
   })();
   document.addEventListener('keydown', function (e) {
     if (e.target && /INPUT|SELECT/.test(e.target.tagName)) return;
@@ -905,7 +913,7 @@
       try {
         var L = AutoPage.learnTempo(new AutoPage.Reference(pkg), perf, startIdx, function (p) { $('msg').textContent = '解析中です… ' + Math.round(p * 100) + '%'; });
         tempo = { barSec: L.barSec, firstBar: L.firstBar, lastBar: L.lastBar, at: Date.now() }; store.putKey(sig(), JSON.stringify(tempo));
-        $('msg').textContent = '覚えました（' + pkg.order[L.firstBar] + '〜' + pkg.order[Math.min(L.lastBar, pkg.order.length) - 1] + ' 小節）。「聞き始める」を押してください。';
+        $('msg').textContent = '覚えました（' + pkg.order[L.firstBar] + '〜' + pkg.order[Math.min(L.lastBar, pkg.order.length) - 1] + ' 小節）。「弾き始める」を押してください。';
         log('テンポを覚えました');
       } catch (e) { $('msg').textContent = '覚えられませんでした: ' + (e && e.message || e); }
       $('learnbtn').disabled = false; showTempoInfo(); setTimeout(function () { if (!running) { $('msg').hidden = true; } }, 4000);
@@ -942,7 +950,7 @@
       c.close(); applyLearned(perf, +$('startbar').value);
     }).catch(function (e) { log('読み込めません: ' + e); });
   }
-  $('tempomode').onchange = function () { store.putKey('mode:' + (pkg.title || '') + ':' + pkg.order.length, this.value); if (running) { log('テンポの追い方を変えました。いったん止めて、もう一度「聞き始める」を押してください。'); } };
+  $('tempomode').onchange = function () { store.putKey('mode:' + (pkg.title || '') + ':' + pkg.order.length, this.value); if (running) { log('テンポの追い方を変えました。いったん止めて、もう一度「弾き始める」を押してください。'); } };
   $('learnbtn').onclick = function () { learning ? endLearn() : startLearn(); };
   $('learnfilebtn').onclick = function () { $('learnfile').click(); };
   $('learnfile').onchange = function () { if (this.files[0]) learnFromFile(this.files[0]); this.value = ''; };
@@ -1126,7 +1134,7 @@
           images: W.imgs.map(function (i) { return i.data; }), sizes: W.imgs.map(function (i) { return { w: i.w, h: i.h }; }), firstBars: W.imgs.map(function (i) { return i.rect; })
         });
         var text = JSON.stringify(p); wclose(); boot(p, text);
-        $('msg').hidden = false; $('msg').textContent = '曲ができました。「聞き始める」を押して弾いてみてください。'; setTimeout(function () { if (!running) $('msg').hidden = true; }, 5000);
+        $('msg').hidden = false; $('msg').textContent = '曲ができました。「弾き始める」を押して弾いてみてください。'; setTimeout(function () { if (!running) $('msg').hidden = true; }, 5000);
       } catch (e) { wshow('wtapview'); $('wstat').textContent = '作れませんでした: ' + (e && e.message || e); }
     }, 50);
   };
