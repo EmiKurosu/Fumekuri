@@ -83,7 +83,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v21</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v22</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><span>小節</span><b id="bar">–</b><span id="pg">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;min-width:6.5ch;text-align:right;font-variant-numeric:tabular-nums"></span></div>
 </header>
@@ -786,7 +786,7 @@
   function start() {
     if (running || starting) return; starting = true;
     var AC = window.AudioContext || window.webkitAudioContext; ctx = new AC();
-    var myCtx = ctx, stopped = false;
+    var myCtx = ctx, stopped = false, diag = { calls: 0, peak: 0, via: 'worklet' };
     $('go').textContent = '準備中…'; showErr('マイクを準備しています…（許可の確認が出たら「許可」を押してください）');
     var fail = function (e) { starting = false; if (stopped) return; stopped = true; try { myCtx.close(); } catch (x) {} if (ctx === myCtx) ctx = null; running = false; $('go').textContent = '弾き始める'; $('go').classList.remove('on');
       showErr('マイクを使えません（' + (e && (e.name || '') + ' ' + (e && e.message || e || '')).trim() + '）。Safari の「ぁあ」→「Webサイトの設定」でマイクを許可し、ページを再読み込みしてからもう一度押してください。'); };
@@ -795,8 +795,8 @@
       if (stopped) { s.getTracks().forEach(function (t) { t.stop(); }); return; }
       stream = s; makePager(); if (myCtx.state !== 'running' && myCtx.resume) resumed = myCtx.resume().catch(function () {});
       var src = myCtx.createMediaStreamSource(s), sink = myCtx.createGain(); sink.gain.value = 0; sink.connect(myCtx.destination);
-      var feed = function (chunk) { if (pager) pager.feed(chunk); };
-      var useSP = function () { if (node) { try { node.disconnect(); } catch (x) {} } node = myCtx.createScriptProcessor(2048, 1, 1); node.onaudioprocess = function (e) { feed(new Float32Array(e.inputBuffer.getChannelData(0))); }; src.connect(node); node.connect(sink); };
+      var feed = function (chunk) { diag.calls++; for (var q = 0; q < chunk.length; q += 16) { var a = Math.abs(chunk[q]); if (a > diag.peak) diag.peak = a; } if (pager) pager.feed(chunk); };
+      var useSP = function () { diag.via = 'scriptprocessor'; if (node) { try { node.disconnect(); } catch (x) {} } node = myCtx.createScriptProcessor(2048, 1, 1); node.onaudioprocess = function (e) { feed(new Float32Array(e.inputBuffer.getChannelData(0))); }; src.connect(node); node.connect(sink); };
       var wl = null;
       if (myCtx.audioWorklet) {
         var url = URL.createObjectURL(new Blob([workletCode], { type: 'application/javascript' }));
@@ -811,8 +811,12 @@
         myCtx.onstatechange = function () { if (myCtx.state !== 'running' && running && ctx === myCtx) { myCtx.resume().catch(function () {}); } };
         if (navigator.wakeLock) navigator.wakeLock.request('screen').then(function (l) { wake = l; }).catch(function () {});
         // watchdog: no sound arrives at all -> try the other capture method once, then say so
-        setTimeout(function () { if (running && ctx === myCtx && pager && pager.n === 0) { try { useSP(); } catch (x) {} } }, 2500);
-        setTimeout(function () { if (running && ctx === myCtx && pager && pager.n === 0) var tk = stream && stream.getAudioTracks()[0]; showErr('マイクから音が入ってきません。\n他のアプリがマイクを使っていないか確かめ、ページを再読み込みしてから、もう一度「弾き始める」を押してください。\n（状態: ' + myCtx.state + ' / ' + (tk ? tk.readyState + (tk.muted ? ' / muted' : '') : 'トラックなし') + '）'); }, 6000);
+        setTimeout(function () { if (running && ctx === myCtx && pager && pager.n === 0) { try { useSP(); } catch (x) {} } }, 6000);     // nothing arrives after 6 s: try the other capture method
+        setTimeout(function () {                                                                                                         // still nothing after 12 s: say so
+          if (!(running && ctx === myCtx && pager && pager.n === 0)) return;
+          var tk = stream && stream.getAudioTracks()[0];
+          showErr('マイクから音が入ってきません。\n他のアプリがマイクを使っていないか確かめ、ページを再読み込みしてから、もう一度「弾き始める」を押してください。\n（状態: ' + myCtx.state + ' / ' + (tk ? tk.readyState + (tk.muted ? ' / muted' : '') : 'トラックなし') + ' / ' + diag.via + ' / 受信' + diag.calls + '回 / 最大' + diag.peak.toFixed(4) + '）');
+        }, 12000);
       });
     }).catch(fail);
   }
