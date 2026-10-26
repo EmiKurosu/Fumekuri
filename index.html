@@ -128,7 +128,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v36</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v38</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><span>小節</span><b id="bar">–</b><span id="pg">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;min-width:6.5ch;text-align:right;font-variant-numeric:tabular-nums"></span></div>
 </header>
@@ -155,13 +155,13 @@
     <label><span>濃さ <b id="inkav"></b></span><input type="range" id="inkar" min="10" max="100" step="5"></label>
     <canvas id="inkprev" width="220" height="40"></canvas>
   </div>
-  <div id="fsbar" hidden><button type="button" id="fsback" class="ib" aria-label="Exit full screen"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button><button type="button" id="fsvw" class="ib" aria-label="Reset zoom"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg></button><button type="button" id="fsgo">弾き始める</button><button type="button" id="fsstart" class="ib" aria-label="Start from the beginning"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M4.5 4h2.6v16H4.5zM21 4.5v15L8.6 12z"/></svg></button></div>
+  <div id="fsbar" hidden><button type="button" id="fsback" class="ib" aria-label="Exit full screen"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg></button><button type="button" id="fsgo">弾き始める</button><button type="button" id="fsstart" class="ib" aria-label="Start from the beginning"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M4.5 4h2.8v16H4.5zM10 4.5v15L21.5 12z"/></svg></button></div>
   <div id="msg">楽譜を読み込んでいます…</div>
   <div id="preview" aria-live="polite"><div class="cap"><span id="pvt">次のページ</span><span id="pvb"></span></div><canvas id="pvc"></canvas></div>
 </main>
 <footer>
   <button type="button" id="fsbtn" class="ib" aria-label="Full screen" title="Full screen"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button><button type="button" id="vwreset" class="ib" aria-label="Reset zoom" title="Reset zoom"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg></button>
-  <button id="go" disabled>弾き始める</button><button type="button" id="startreset" class="ib" aria-label="Start from the beginning" title="Start from the beginning"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M4.5 4h2.6v16H4.5zM21 4.5v15L8.6 12z"/></svg></button>
+  <button id="go" disabled>弾き始める</button><button type="button" id="startreset" class="ib" aria-label="Start from the beginning" title="Start from the beginning"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M4.5 4h2.8v16H4.5zM10 4.5v15L21.5 12z"/></svg></button>
   <span class="spacer"></span>
   <label style="color:var(--dim);font-size:13px"><input type="file" id="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.mp4,.mov" hidden><button id="filebtn" type="button">録音で試す</button></label>
   <input type="file" id="score" accept=".json,application/json" hidden><button id="libbtn" type="button" aria-label="Songs" title="Songs"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z"/><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z"/></svg></button>
@@ -1460,7 +1460,6 @@
   }
   $('fsbtn').onclick = function () { setFull(!document.body.classList.contains('full')); };
   $('vwreset').onclick = function () { delete adj[shownPage]; viewSave(); drawPage(null, 0); };
-  $('fsvw').onclick = function () { $('vwreset').click(); };
   $('fsstart').onclick = function () { $('startreset').click(); };
   $('fsback').onclick = function () { setFull(false); };
   $('fsgo').onclick = function () { $('go').click(); };
