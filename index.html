@@ -26,7 +26,7 @@
   .meter { width: 70px; height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
   .meter i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .08s linear; }
   .meter.lost i { background: var(--warn); }
-  main { position: relative; flex: 1; min-height: 0; background: #0d0e11; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  main { touch-action: pan-y; position: relative; flex: 1; min-height: 0; background: #0d0e11; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
   #page { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   #msg[hidden] { display: none; }
   #msg { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--dim); }
@@ -81,7 +81,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v15</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><span>小節</span><b id="bar">–</b><span id="pg">p.–</span><span id="cf" title="追従の確かさ"></span></div>
 </header>
@@ -92,8 +92,6 @@
 </main>
 <footer>
   <button id="go" disabled>聞き始める</button>
-  <button id="prev" aria-label="前のページ">◀ 前</button>
-  <button id="next" aria-label="次のページ">次 ▶</button>
   <select id="startbar" aria-label="弾き始める小節"></select>
   <span class="spacer"></span>
   <label style="color:var(--dim);font-size:13px"><input type="file" id="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.mp4,.mov" hidden><button id="filebtn" type="button">録音で試す</button></label>
@@ -110,7 +108,7 @@
       <button type="button" id="learnfilebtn">録音ファイルから覚える（上級）</button><input type="file" id="learnfile" accept="audio/*" hidden>
       <button type="button" id="learnreset">覚えたテンポを消す</button>
       <button type="button" id="delscore">保存した楽譜を消す</button>
-      <small>ペダルの信号（→ / ← / PageDown / PageUp）でも、手動でめくれます。</small>
+      <small>自動でめくれないときは、楽譜を指で右へスワイプすると次のページ、左へスワイプすると前のページへ戻ります。ペダルの信号（→ / ← / PageDown / PageUp）でも手動でめくれます。</small>
       <div id="log"></div>
     </div>
   </details>
@@ -490,7 +488,7 @@
     order.forEach(function (lab, i) { var p = barPage[lab]; var l = self.runs[self.runs.length - 1]; if (l && l[2] === p) l[1] = i; else self.runs.push([i, i, p]); });
     this.runOf = new Int32Array(order.length);
     this.runs.forEach(function (r, k) { for (var i = r[0]; i <= r[1]; i++) self.runOf[i] = k; });
-    this.disp = 0; this.stable = 0; this.events = [];
+    this.disp = 0; this.stable = 0; this.events = []; this.mEma = 0.7;
   }
   PageTurner.prototype.displayedPage = function () { return this.runs[this.disp][2]; };
   PageTurner.prototype._turn = function (t, kind, to, pos) { this.events.push({ t: t, kind: kind, from: this.disp, to: to, pos: pos }); this.disp = to; return kind; };
@@ -498,7 +496,9 @@
     if (!silent) {
       this.hist.push(match); if (this.hist.length > this.histN) this.hist.shift();
       var recent = 0; for (var i = 0; i < this.hist.length; i++) recent += this.hist[i]; recent /= this.hist.length;
-      if (conf >= this.confThr && match >= this.matchThr) { this.stable += this.dt; this.bad = 0; }
+      if (conf >= this.confThr) this.mEma = 0.985 * this.mEma + 0.015 * match;      // a poor reference (room recording) matches less well: lower the bar to what is normal for this reference
+      var mthr = Math.min(this.matchThr, Math.max(0.2, 0.62 * this.mEma));
+      if (conf >= this.confThr && match >= mthr) { this.stable += this.dt; this.bad = 0; }
       else if (conf >= 0.9 && match >= 0.1 && recent >= 0.45 && this.bad < this.graceS) this.bad += this.dt;
       else { this.stable = 0; this.bad = 0; }
     }
@@ -855,7 +855,7 @@
     if (pager && running) {
       var L = pager.last, n = pkg.order.length, idx = Math.min(Math.max(Math.floor(L.pos), 0), n - 1), lab = pkg.order[idx];
       $('bar').textContent = L.silent && pager.n < 12 ? '–' : labText(lab, idx);
-      var m = $('meter'); m.firstElementChild.style.width = Math.min(100, Math.round(Math.sqrt(L.rms || 0) * 220)) + '%';
+      var m = $('meter'); var fl = pager.gate && pager.gate.floor; m.firstElementChild.style.width = (fl ? Math.min(100, Math.max(0, Math.round(16 * Math.log2(Math.max(1, (L.rms || 0) / fl))))) : Math.min(100, Math.round(Math.sqrt(L.rms || 0) * 220))) + '%';
       m.classList.toggle('lost', !L.silent && L.conf < 0.5); $('cf').textContent = L.silent ? '' : '追従' + Math.round(100 * Math.max(0, Math.min(1, L.conf))) + '%';
       drawPage(lab, L.pos - idx);
     }
@@ -864,8 +864,21 @@
 
   /* ---------- manual page change (pedal keys, buttons) ---------- */
   var maxPage = 1;
-  function manual(delta) { var p = Math.min(maxPage, Math.max(1, (shownPage || 1) + delta)); hidePreview(); showPage(p); }
-  $('next').onclick = function () { manual(1); }; $('prev').onclick = function () { manual(-1); };
+  function manual(delta) {
+    var p = Math.min(maxPage, Math.max(1, (shownPage || 1) + delta)); hidePreview(); showPage(p);
+    if (pager) { var rs = pager.turner.runs; for (var k = 0; k < rs.length; k++) if (rs[k][2] === p) { pager.turner.disp = k; pager.turner.previewed = -1; break; } }   // the follower continues from the page you chose
+  }
+  /* swipe on the score: to the right = next page, to the left = previous page */
+  (function () {
+    var m = document.querySelector('main'), sx = null, sy = null, st = 0;
+    m.addEventListener('touchstart', function (e) { if (e.touches.length !== 1) { sx = null; return; } sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); }, { passive: true });
+    m.addEventListener('touchend', function (e) {
+      if (sx === null) return; var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy; sx = null;
+      if (Date.now() - st < 900 && Math.abs(dx) > 60 && Math.abs(dx) > 1.6 * Math.abs(dy)) manual(dx > 0 ? 1 : -1);
+    }, { passive: true });
+    var px = null; m.addEventListener('pointerdown', function (e) { if (e.pointerType === 'mouse') px = e.clientX; });
+    m.addEventListener('pointerup', function (e) { if (px === null) return; var dx = e.clientX - px; px = null; if (Math.abs(dx) > 80) manual(dx > 0 ? 1 : -1); });
+  })();
   document.addEventListener('keydown', function (e) {
     if (e.target && /INPUT|SELECT/.test(e.target.tagName)) return;
     if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { manual(1); e.preventDefault(); }
