@@ -59,6 +59,13 @@
   .settings input[type=range] { width: 100%; min-height: 32px; accent-color: var(--accent); }
   .settings small { color: var(--dim); }
   #log { font-size: 12px; color: var(--dim); white-space: pre-line; max-height: 5.6em; overflow: auto; }
+  main { touch-action: none; }
+  #inkbar { position: absolute; top: 8px; left: 8px; z-index: 3; display: flex; flex-direction: column; gap: 6px; }
+  #inkbar button { min-height: 40px; width: 40px; padding: 0; border-radius: 20px; font-size: 18px; line-height: 1; display: grid; place-items: center; background: rgba(31,35,43,.82); color: #fff; border: 2px solid rgba(255,255,255,.35); }
+  #inkbar button.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+  #inkbar button.dot { border-color: rgba(255,255,255,.7); }
+  #inkopts { display: flex; flex-direction: column; gap: 6px; }
+  #inkopts[hidden] { display: none; }
   #wiz { position: fixed; inset: 0; z-index: 20; background: var(--bg); overflow-y: auto; -webkit-overflow-scrolling: touch; padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
   #wiz [hidden], #wiz[hidden] { display: none !important; }
   #wiz .box { padding-top: 40px; max-width: 760px; margin: 0 auto; display: grid; gap: 14px; }
@@ -83,12 +90,27 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v22</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v24</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><span>小節</span><b id="bar">–</b><span id="pg">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;min-width:6.5ch;text-align:right;font-variant-numeric:tabular-nums"></span></div>
 </header>
 <main>
   <canvas id="page"></canvas>
+  <div id="inkbar">
+    <button type="button" id="inkt" aria-label="書き込みのオン・オフ">✎</button>
+    <div id="inkopts" hidden>
+      <button type="button" class="dot" data-c="#111111" style="background:#111" aria-label="黒"></button>
+      <button type="button" class="dot" data-c="#d62828" style="background:#d62828" aria-label="赤"></button>
+      <button type="button" class="dot" data-c="#1d4ed8" style="background:#1d4ed8" aria-label="青"></button>
+      <button type="button" class="dot" data-c="#15803d" style="background:#15803d" aria-label="緑"></button>
+      <button type="button" class="dot" data-c="#facc15" data-h="1" style="background:#facc15" aria-label="蛍光ペン（黄）"></button>
+      <button type="button" class="dot" data-c="#fb7185" data-h="1" style="background:#fb7185" aria-label="蛍光ペン（ピンク）"></button>
+      <button type="button" id="inkw" aria-label="太さ">細</button>
+      <button type="button" id="inke" aria-label="消しゴム">⌫</button>
+      <button type="button" id="inku" aria-label="一つ戻す">↶</button>
+      <button type="button" id="inkx" aria-label="このページの書き込みを全部消す">🗑</button>
+    </div>
+  </div>
   <div id="msg">楽譜を読み込んでいます…</div>
   <div id="preview" aria-live="polite"><div class="cap"><span id="pvt">次のページ</span><span id="pvb"></span></div><canvas id="pvc"></canvas></div>
 </main>
@@ -149,7 +171,7 @@
       <div class="wrow"><button type="button" id="wplay">⏸ 一時停止</button><button type="button" id="wback">⟲ 10秒戻る</button><button type="button" id="wundo">一つ取り消す</button><button type="button" id="wrate">ゆっくり再生: オフ</button></div>
       <div class="wrow"><button type="button" id="wdone" disabled>できた（曲を作る）</button><button type="button" id="wabort">最初からやり直す</button></div>
       <small style="color:var(--fg)">💡 最後のページの印を付けたあとも、演奏は最後まで聞かせてください（最後まで流してから「できた」を押すと、終盤の追従が安定します）。</small>
-      <small>ページの最後の小節が始まる瞬間と、次のページの最初の音が鳴る瞬間にタップします。遅れても少しなら自動で補正します。まちがえたら「一つ取り消す」。</small>
+      <small>各ページで、「このあたりでページをめくりたい」と思う瞬間に、1回だけタップします（楽譜の最後の小節の途中が目安です）。ぴったりでなくても大丈夫です。まちがえたら「一つ取り消す」。</small>
       <video id="wmedia" playsinline preload="auto" style="width:2px;height:2px;opacity:0;position:absolute"></video>
     </div>
     <div id="wbusy" hidden><h2 id="wbusyt">解析しています…</h2><p id="wbusym"></p></div>
@@ -749,8 +771,7 @@
     g.imageSmoothingQuality = 'high';
     g.drawImage(imgs[reg.img], reg.x0, reg.y0, w, h, ox, oy, w * s, h * s);
     var b = playBar != null ? pkg.rects[playBar] : null;
-    if (b && b.img === reg.img && pkg.bar_page[playBar] === shownPage) {
-    }
+    drawInk(g, view);
   }
   function showPage(p) { shownPage = p; $('pg').textContent = 'p.' + p; $('msg').hidden = true; drawPage(null, 0); }
 
@@ -879,7 +900,6 @@
       $('bar').textContent = L.silent && pager.n < 12 ? '–' : labText(lab, idx);
       var m = $('meter'); var fl = pager.gate && pager.gate.floor; m.firstElementChild.style.width = (fl ? Math.min(100, Math.max(0, Math.round(16 * Math.log2(Math.max(1, (L.rms || 0) / fl))))) : Math.min(100, Math.round(Math.sqrt(L.rms || 0) * 220))) + '%';
       m.classList.toggle('lost', !L.silent && L.conf < 0.5); $('cf').textContent = L.silent ? '' : '追従' + Math.round(100 * Math.max(0, Math.min(1, L.conf))) + '%';
-      drawPage(lab, L.pos - idx);
     }
     requestAnimationFrame(tick);
   }
@@ -893,12 +913,12 @@
   /* swipe on the score: to the left = next page, to the right = previous page */
   (function () {
     var m = document.querySelector('main'), sx = null, sy = null, st = 0;
-    m.addEventListener('touchstart', function (e) { if (e.touches.length !== 1) { sx = null; return; } sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); }, { passive: true });
+    m.addEventListener('touchstart', function (e) { if (e.touches.length !== 1 || e.touches[0].touchType === 'stylus') { sx = null; return; } sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); }, { passive: true });
     m.addEventListener('touchend', function (e) {
       if (sx === null) return; var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy; sx = null;
       if (Date.now() - st < 900 && Math.abs(dx) > 60 && Math.abs(dx) > 1.6 * Math.abs(dy)) manual(dx < 0 ? 1 : -1);
     }, { passive: true });
-    var px = null; m.addEventListener('pointerdown', function (e) { if (e.pointerType === 'mouse') px = e.clientX; });
+    var px = null; m.addEventListener('pointerdown', function (e) { if (e.pointerType === 'mouse' && !ink.on) px = e.clientX; });
     m.addEventListener('pointerup', function (e) { if (px === null) return; var dx = e.clientX - px; px = null; if (Math.abs(dx) > 80) manual(dx < 0 ? 1 : -1); });
   })();
   document.addEventListener('keydown', function (e) {
@@ -977,7 +997,7 @@
   var delArmed = null;
   $('delscore').onclick = function () {
     var b = this;
-    if (!delArmed) { b.textContent = 'もう一度押すと、保存した楽譜を消します'; delArmed = setTimeout(function () { delArmed = null; b.textContent = '保存した楽譜を消す'; }, 4000); return; }
+    if (!delArmed) { b.textContent = 'もう一度押すと、保存した楽譜と書き込みを消します'; delArmed = setTimeout(function () { delArmed = null; b.textContent = '保存した楽譜を消す'; }, 4000); return; }
     clearTimeout(delArmed); delArmed = null; b.textContent = '保存した楽譜を消す';
     if (running) stop();
     store.clear(function () {
@@ -1111,15 +1131,15 @@
     $('wlevelmsg').textContent = bad ? '音が聞こえていないようです（周りの音とほぼ同じ大きさです）。演奏を流してみてください。' : pct < 45 ? '音が聞こえています。もう少し大きいと、さらに安心です。' : '音は十分に聞こえています ✔';
     $('wlevelmsg').style.color = bad ? 'var(--warn)' : 'var(--fg)';
   }
-  function wpage() { return Math.min(W.imgs.length, Math.floor(W.taps.length / 2) + 1); }     // page being played now
+  function wpage() { return Math.min(W.imgs.length, W.taps.length + 1); }     // page being played now
   function wupdate() {
     if (!W) return;
-    var n = W.imgs.length, k = W.taps.length, p = wpage(), done = k >= 2 * (n - 1);
+    var n = W.imgs.length, k = W.taps.length, p = wpage(), done = k >= n - 1;
     $('wpageimg').src = W.imgs[p - 1].data; $('wh').textContent = 'p.' + p + ' / ' + n;
     var t = $('wtap');
     if (done) { t.disabled = true; t.textContent = '最後のページです'; $('wstat').textContent = '印はすべて付きました。演奏を最後まで聞かせてから「できた」を押してください。'; }
-    else if (k % 2 === 0) { t.disabled = false; t.textContent = '最後の小節が始まった'; $('wstat').textContent = p + ' ページ目：この ページの「最後の小節」が始まる瞬間にタップ'; }
-    else { t.disabled = false; t.textContent = '次のページが始まった'; $('wstat').textContent = p + ' ページ目：「次のページ」の最初の音が鳴る瞬間にタップ'; }
+    else { t.disabled = false; t.textContent = 'ここでめくりたい'; $('wstat').textContent = p + ' ページ目：このページを「めくりたい」と思う瞬間に、タップしてください'; }
+
     if (W.mic) { $('wdone').disabled = !done; if (W.micErr) { $('wstat').textContent = '⚠ ' + W.micErr; $('wtap').disabled = true; return; } if (!W.micOn && !done) { $('wstat').textContent = 'マイクを準備しています…（許可の確認が出たら「許可」を押してください）'; } else if (!done) $('wstat').textContent = '● 録音中 ' + Math.round(W.now()) + ' 秒　' + (W.frames.length < 10 && W.micOn ? '⚠ まだ音が入ってきません。 ' : '') + $('wstat').textContent; if (done) $('wstat').textContent = '印はすべて付きました。演奏を最後まで聞かせてから「できた」を押してください。'; $('wundo').disabled = !k; return; }
     $('wdone').disabled = !done || (W.capture && !$('wmedia').ended);
     if (done && W.capture && !$('wmedia').ended) $('wstat').textContent += '（この録音は、最後まで再生が終わるのを待ってください）';
@@ -1141,7 +1161,7 @@
     $('wlevelbox').hidden = true; lvAvg = lvFloor = lvN = 0; var m = $('wmedia'); m.pause(); if (W.stream) { W.stream.getTracks().forEach(function (t) { t.stop(); }); } wshow('wbusy'); $('wbusym').textContent = '楽譜と音を結び付けています…';
     setTimeout(function () {
       try {
-        var marks = [], k; for (k = 0; k < W.imgs.length - 1; k++) marks.push({ lastBar: W.taps[2 * k], next: W.taps[2 * k + 1] });
+        var marks = [], k, S = 0; for (k = 0; k < W.imgs.length - 1; k++) { var T = W.taps[k], dur = T - S, bl = Math.max(1.5, Math.min(5, 0.07 * dur, 0.4 * dur)); marks.push({ lastBar: T - 0.55 * bl, next: T + 0.45 * bl }); S = T + 0.45 * bl; }   // the tap is the moment of the turn (55 % into the last bar)
         var ex = W.ex, p = Song.buildSong({
           frames: W.frames, rms: W.rms, frameSec: ex.hop / W.sr, t0: ex.nfft / 2 / W.sr, marks: marks, title: $('wtitle').value.trim() || '新しい曲',
           images: W.imgs.map(function (i) { return i.data; }), sizes: W.imgs.map(function (i) { return { w: i.w, h: i.h }; }), firstBars: W.imgs.map(function (i) { return i.rect; })
@@ -1151,6 +1171,67 @@
       } catch (e) { wshow('wtapview'); $('wstat').textContent = '作れませんでした: ' + (e && e.message || e); }
     }, 50);
   };
+
+  /* ---------- handwriting on the score (Apple Pencil) ---------- */
+  var ink = { on: false, color: '#d62828', hl: false, wide: false, eraser: false, strokes: {}, cur: null, saveT: null };
+  function inkKey() { return 'ink:' + (pkg && pkg.title || '') + ':' + (pkg ? pkg.order.length : 0); }
+  function inkLoad() { ink.strokes = {}; if (!pkg) return; store.getKey(inkKey(), function (t) { try { if (t) ink.strokes = JSON.parse(t) || {}; } catch (e) {} drawPage(null, 0); }); }
+  function inkSave() { clearTimeout(ink.saveT); ink.saveT = setTimeout(function () { store.putKey(inkKey(), JSON.stringify(ink.strokes)); }, 500); }
+  function strokePath(g, st, v) {
+    var p = st.p; if (p.length < 2) return; g.beginPath();
+    g.moveTo(v.ox + (p[0] - v.reg.x0) * v.s, v.oy + (p[1] - v.reg.y0) * v.s);
+    if (p.length === 2) g.lineTo(v.ox + (p[0] - v.reg.x0) * v.s + 0.1, v.oy + (p[1] - v.reg.y0) * v.s);
+    for (var i = 2; i < p.length; i += 2) g.lineTo(v.ox + (p[i] - v.reg.x0) * v.s, v.oy + (p[i + 1] - v.reg.y0) * v.s);
+    g.stroke();
+  }
+  function drawOne(g, st, v) {
+    g.save(); g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = st.c; g.lineWidth = st.w * v.s;
+    if (st.h) { g.globalAlpha = 0.45; g.globalCompositeOperation = 'multiply'; }
+    strokePath(g, st, v); g.restore();
+  }
+  function drawInk(g, v) { var list = ink.strokes[shownPage]; if (!v || !list) return; for (var i = 0; i < list.length; i++) drawOne(g, list[i], v); }
+  function inkPoint(e) {
+    var c = $('page'), r = c.getBoundingClientRect(), d = c.width / r.width;
+    return [((e.clientX - r.left) * d - view.ox) / view.s + view.reg.x0, ((e.clientY - r.top) * d - view.oy) / view.s + view.reg.y0, d];
+  }
+  function inkOn(e) { return ink.on && view && shownPage != null && e.pointerType !== 'touch'; }     // the pencil (or a mouse) writes, a finger only swipes
+  (function () {
+    var c = $('page');
+    c.addEventListener('pointerdown', function (e) {
+      if (!inkOn(e)) return; e.preventDefault(); try { c.setPointerCapture(e.pointerId); } catch (x) {}
+      var pt = inkPoint(e), d = pt[2];
+      if (ink.eraser) { ink.cur = { erase: true }; eraseAt(pt); return; }
+      var w = (ink.hl ? (ink.wide ? 20 : 12) : (ink.wide ? 4.2 : 2.2)) * d / view.s;
+      ink.cur = { c: ink.color, w: w, h: ink.hl ? 1 : 0, p: [pt[0], pt[1]] };
+      (ink.strokes[shownPage] = ink.strokes[shownPage] || []).push(ink.cur); drawPage(null, 0);
+    });
+    c.addEventListener('pointermove', function (e) {
+      if (!ink.cur) return; e.preventDefault();
+      var evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e]; if (!evs.length) evs = [e];
+      for (var i = 0; i < evs.length; i++) { var pt = inkPoint(evs[i]); if (ink.cur.erase) eraseAt(pt); else ink.cur.p.push(Math.round(pt[0] * 10) / 10, Math.round(pt[1] * 10) / 10); }
+      if (!ink.cur.erase) drawPage(null, 0);
+    });
+    function up() { if (!ink.cur) return; ink.cur = null; inkSave(); }
+    c.addEventListener('pointerup', up); c.addEventListener('pointercancel', up);
+  })();
+  function eraseAt(pt) {
+    var list = ink.strokes[shownPage]; if (!list) return; var r = 16 * pt[2] / view.s, keep = list.filter(function (st) {
+      for (var i = 0; i < st.p.length; i += 2) { var dx = st.p[i] - pt[0], dy = st.p[i + 1] - pt[1]; if (dx * dx + dy * dy < r * r) return false; } return true; });
+    if (keep.length !== list.length) { ink.strokes[shownPage] = keep; drawPage(null, 0); }
+  }
+  function inkUI() {
+    $('inkopts').hidden = !ink.on; $('inkt').classList.toggle('sel', ink.on);
+    Array.prototype.forEach.call(document.querySelectorAll('#inkopts .dot'), function (b) { b.classList.toggle('sel', !ink.eraser && b.getAttribute('data-c') === ink.color); });
+    $('inke').classList.toggle('sel', ink.eraser); $('inkw').textContent = ink.wide ? '太' : '細';
+  }
+  $('inkt').onclick = function () { ink.on = !ink.on; ink.cur = null; inkUI(); };
+  Array.prototype.forEach.call(document.querySelectorAll('#inkopts .dot'), function (b) { b.onclick = function () { ink.color = b.getAttribute('data-c'); ink.hl = !!b.getAttribute('data-h'); ink.eraser = false; inkUI(); }; });
+  $('inkw').onclick = function () { ink.wide = !ink.wide; inkUI(); };
+  $('inke').onclick = function () { ink.eraser = !ink.eraser; inkUI(); };
+  $('inku').onclick = function () { var l = ink.strokes[shownPage]; if (l && l.length) { l.pop(); inkSave(); drawPage(null, 0); } };
+  var clrArm = null;
+  $('inkx').onclick = function () { var b = this; if (!clrArm) { b.textContent = '?'; clrArm = setTimeout(function () { clrArm = null; b.textContent = '🗑'; }, 3000); return; } clearTimeout(clrArm); clrArm = null; b.textContent = '🗑'; ink.strokes[shownPage] = []; inkSave(); drawPage(null, 0); };
+  inkUI();
 
   /* ---------- load ---------- */
   var tickOn = false;
@@ -1163,7 +1244,7 @@
     $('msg').hidden = false; $('msg').textContent = '楽譜を読み込んでいます…'; $('bar').textContent = '–'; hidePreview();
     var n = 0; imgs = p.images.map(function (f) { var im = new Image(); im.onload = function () { if (++n === p.images.length) { showPage(p.bar_page[p.order[0]]); $('go').disabled = false; } }; im.src = f; return im; });
     if (save) store.put(save);
-    tempo = null; $('learnbtn').disabled = false; showTempoInfo();
+    tempo = null; $('learnbtn').disabled = false; showTempoInfo(); inkLoad();
     store.getKey('mode:' + (p.title || '') + ':' + p.order.length, function (m) { if (m === 'wide' || m === 'single') $('tempomode').value = m; });
     store.getKey(sig(), function (t) { if (t) { try { tempo = JSON.parse(t); if (tempo.barSec.length !== p.order.length) tempo = null; } catch (e) { tempo = null; } showTempoInfo(); } });
     if (!tickOn) { tickOn = true; requestAnimationFrame(tick); }
