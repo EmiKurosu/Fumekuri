@@ -964,7 +964,7 @@
     $('wtitle').value = ''; $('wthumbs').innerHTML = ''; $('waudinfo').innerHTML = '<small>まだ選んでいません</small>'; $('wsetmsg').textContent = ''; $('wnext').disabled = true;
     $('wiz').hidden = false; wshow('wsetup'); det.open = false;
   }
-  function wclose() { if (W && W.stream) { try { W.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} } try { var m = $('wmedia'); m.pause(); m.removeAttribute('src'); m.load(); } catch (e) {} if (W && W.ctx) { try { W.ctx.close(); } catch (e) {} } W = null; $('wiz').hidden = true; }
+  function wclose() { if (W && W.timer) clearInterval(W.timer); if (W && W.stream) { try { W.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} } try { var m = $('wmedia'); m.pause(); m.removeAttribute('src'); m.load(); } catch (e) {} if (W && W.ctx) { try { W.ctx.close(); } catch (e) {} } W = null; $('wiz').hidden = true; }
   function wcheck() { $('wnext').disabled = !(W.imgs.length >= 2 && W.file); $('wmic').disabled = W.imgs.length < 2; }
   function wthumbs() {
     var box = $('wthumbs'); box.innerHTML = '';
@@ -1040,7 +1040,8 @@
       var mk = W.ctx.audioWorklet ? W.ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([workletCode], { type: 'application/javascript' }))).then(function () { var nd = new AudioWorkletNode(W.ctx, 'tap'); nd.port.onmessage = function (e) { feed(e.data); }; ms.connect(nd); nd.connect(sink); })
         : Promise.resolve().then(function () { var sp = W.ctx.createScriptProcessor(2048, 1, 1); sp.onaudioprocess = function (e) { feed(new Float32Array(e.inputBuffer.getChannelData(0))); }; ms.connect(sp); sp.connect(sink); });
       return mk;
-    }).then(function () { W.micOn = true; wupdate(); }).catch(function (e) { $('wstat').textContent = 'マイクを使えません。Safari の設定でマイクを許可してください。'; });
+    }).then(function () { W.micOn = true; wupdate(); }).catch(function (e) { W.micErr = 'マイクを使えません（' + (e && (e.name + ' ' + e.message) || e) + '）。Safari の「設定」→「Safari」→「マイク」で許可してください。'; wupdate(); });
+    W.timer = setInterval(function () { if (W && W.mic) wupdate(); }, 500);
   };
   $('wnext').onclick = function () {
     W.mic = false; ['wplay', 'wback', 'wrate'].forEach(function (k) { $(k).hidden = false; });
@@ -1077,13 +1078,13 @@
     if (done) { t.disabled = true; t.textContent = '最後のページです'; $('wstat').textContent = '印はすべて付きました。演奏を最後まで聞かせてから「できた」を押してください。'; }
     else if (k % 2 === 0) { t.disabled = false; t.textContent = '最後の小節が始まった'; $('wstat').textContent = p + ' ページ目：この ページの「最後の小節」が始まる瞬間にタップ'; }
     else { t.disabled = false; t.textContent = '次のページが始まった'; $('wstat').textContent = p + ' ページ目：「次のページ」の最初の音が鳴る瞬間にタップ'; }
-    if (W.mic) { $('wdone').disabled = !done; if (!W.micOn && !done) { $('wstat').textContent = 'マイクを準備しています…'; } else if (!done) $('wstat').textContent = '● 録音中。別の機器で演奏を流してください。 ' + $('wstat').textContent; if (done) $('wstat').textContent = '印はすべて付きました。演奏を最後まで聞かせてから「できた」を押してください。'; $('wundo').disabled = !k; return; }
+    if (W.mic) { $('wdone').disabled = !done; if (W.micErr) { $('wstat').textContent = '⚠ ' + W.micErr; $('wtap').disabled = true; return; } if (!W.micOn && !done) { $('wstat').textContent = 'マイクを準備しています…（許可の確認が出たら「許可」を押してください）'; } else if (!done) $('wstat').textContent = '● 録音中 ' + Math.round(W.now()) + ' 秒　' + (W.frames.length < 10 && W.micOn ? '⚠ まだ音が入ってきません。 ' : '') + $('wstat').textContent; if (done) $('wstat').textContent = '印はすべて付きました。演奏を最後まで聞かせてから「できた」を押してください。'; $('wundo').disabled = !k; return; }
     $('wdone').disabled = !done || (W.capture && !$('wmedia').ended);
     if (done && W.capture && !$('wmedia').ended) $('wstat').textContent += '（この録音は、最後まで再生が終わるのを待ってください）';
     $('wundo').disabled = !k;
   }
   $('wtap').onclick = function () {
-    var m = $('wmedia'); if (W.mic) { if (!W.micOn) return; } else if (m.paused && !m.ended) return;
+    var m = $('wmedia'); if (W.mic) { if (!W.micOn) { $('wstat').textContent = '⚠ まだマイクの準備ができていません。少し待つか、マイクの許可を確認してください。'; return; } } else if (m.paused && !m.ended) return;
     var t = Math.max(0, (W.mic ? W.now() : m.currentTime) - TAP_DELAY * (W.mic ? 1 : (m.playbackRate || 1))), last = W.taps.length ? W.taps[W.taps.length - 1] : -1;
     if (t < last + 0.8 || t < 0.8) { var mm = $('wstat'); wupdate(); mm.textContent = '⚠ 前の印より後ろの位置で押してください（今の再生位置は、前の印より前か、ほぼ同じです）。' + mm.textContent; return; }
     W.taps.push(t); wupdate();
