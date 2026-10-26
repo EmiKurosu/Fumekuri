@@ -83,7 +83,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v20</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v21</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><span>小節</span><b id="bar">–</b><span id="pg">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;min-width:6.5ch;text-align:right;font-variant-numeric:tabular-nums"></span></div>
 </header>
@@ -782,12 +782,13 @@
     pager = new AutoPage.AutoPager(pkg, { sampleRate: ctx.sampleRate, startBar: sb, frac: +$('frac').value / 100, previewBars: +$('prevbars').value, barSec: tempo ? tempo.barSec : null, singleTempo: $('tempomode').value !== 'wide', onEvent: onEvent });
     showPage(pkg.bar_page[pkg.order[sb]]); hidePreview();
   }
+  var starting = false;
   function start() {
-    if (running) return;
+    if (running || starting) return; starting = true;
     var AC = window.AudioContext || window.webkitAudioContext; ctx = new AC();
     var myCtx = ctx, stopped = false;
     $('go').textContent = '準備中…'; showErr('マイクを準備しています…（許可の確認が出たら「許可」を押してください）');
-    var fail = function (e) { if (stopped) return; stopped = true; try { myCtx.close(); } catch (x) {} if (ctx === myCtx) ctx = null; running = false; $('go').textContent = '弾き始める'; $('go').classList.remove('on');
+    var fail = function (e) { starting = false; if (stopped) return; stopped = true; try { myCtx.close(); } catch (x) {} if (ctx === myCtx) ctx = null; running = false; $('go').textContent = '弾き始める'; $('go').classList.remove('on');
       showErr('マイクを使えません（' + (e && (e.name || '') + ' ' + (e && e.message || e || '')).trim() + '）。Safari の「ぁあ」→「Webサイトの設定」でマイクを許可し、ページを再読み込みしてからもう一度押してください。'); };
     var resumed = myCtx.resume ? myCtx.resume().catch(function () {}) : Promise.resolve();
     navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } }).then(function (s) {
@@ -802,7 +803,12 @@
         wl = Promise.race([myCtx.audioWorklet.addModule(url).then(function () { node = new AudioWorkletNode(myCtx, 'tap'); node.port.onmessage = function (e) { feed(e.data); }; src.connect(node); node.connect(sink); }), new Promise(function (_, ng) { setTimeout(function () { ng(new Error('worklet timeout')); }, 4000); })]).catch(function () { useSP(); });
       } else { useSP(); wl = Promise.resolve(); }
       return Promise.all([wl, resumed]).then(function () {
-        running = true; $('go').textContent = '止める'; $('go').classList.add('on'); $('msg').hidden = true; log('聞いています (' + myCtx.sampleRate + ' Hz)');
+        starting = false; running = true; $('go').textContent = '止める'; $('go').classList.add('on'); $('msg').hidden = true; log('聞いています (' + myCtx.sampleRate + ' Hz)');
+        if (myCtx.state !== 'running') {            // Safari pauses audio while the permission question is shown: one tap on the screen starts it again
+          showErr('画面をタップすると、\n聞き取りが始まります');
+          $('msg').onclick = function () { $('msg').hidden = true; $('msg').onclick = null; myCtx.resume().catch(function () {}); };
+        }
+        myCtx.onstatechange = function () { if (myCtx.state !== 'running' && running && ctx === myCtx) { myCtx.resume().catch(function () {}); } };
         if (navigator.wakeLock) navigator.wakeLock.request('screen').then(function (l) { wake = l; }).catch(function () {});
         // watchdog: no sound arrives at all -> try the other capture method once, then say so
         setTimeout(function () { if (running && ctx === myCtx && pager && pager.n === 0) { try { useSP(); } catch (x) {} } }, 2500);
