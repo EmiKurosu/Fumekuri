@@ -73,6 +73,7 @@
   #inkadj input[type=range] { width: 100%; min-height: 30px; accent-color: var(--accent); }
   #inkprev { width: 100%; height: 40px; background: #f4f1e8; border-radius: 6px; }
   button.ib[hidden] { display: none; }
+  #vhint[hidden] { display: none !important; }
   button.ib.sel { background: var(--accent); color: #fff; border-color: var(--accent); }
   button.ib { min-height: 48px; width: 48px; padding: 0; display: grid; place-items: center; }
   #fsbar { position: absolute; left: 10px; bottom: 10px; z-index: 4; display: flex; gap: 8px; }
@@ -135,7 +136,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v61</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v62</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><b id="bar" style="display:none">–</b><span id="pg" style="display:inline-block;width:5ch;text-align:right;font-variant-numeric:tabular-nums">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;width:9.5ch;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"></span></div>
 </header>
@@ -152,7 +153,7 @@
       <button type="button" class="dot" data-c="#fb7185" data-h="1" style="background:#fb7185" aria-label="蛍光ペン（ピンク）"></button>
       <button type="button" id="inkw" aria-label="太さと濃さ" title="太さと濃さ"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.06" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/></svg></button>
       <button type="button" id="inke" aria-label="消しゴム" title="消しゴム"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="butt"><path d="M14.2 2.6L21.3 9.8 12.7 18.4 5.6 11.2z"/><path d="M5.6 11.2L3.4 13.4Q2.4 14.6 3.5 15.7L7.1 19.3 11.4 19.3 12.7 18.4"/><path d="M7.3 20.9H17.9"/><path d="M7.6 8.9" /></svg></button>
-      <button type="button" id="inkc" aria-label="Cover with paper colour" title="Cover pencil marks"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><g transform="translate(0 24) scale(1 -1)"><path d="M6.6 8.4L17.6 5.6a4.6 4.6 0 0 1 4 4.5v3a4.6 4.6 0 0 1-4.6 4.6h-4.6c-1.6 0-2.6-.7-3.4-1.9l-1-1.6H6.4a1.8 1.8 0 0 1-1.8-1.8v-1a1.9 1.9 0 0 1 2-1.9z"/><circle cx="16.8" cy="11.6" r="2.4"/><circle cx="10.6" cy="12.4" r="1.8"/><path d="M4.6 10.2L1.9 11.2l2.7 1"/></g></svg></button>
+      <button type="button" id="inkc" aria-label="Cover with paper colour" title="Cover pencil marks"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><g transform="rotate(-25 12 12)"><g transform="translate(0 24) scale(1 -1)"><path d="M6.6 8.4L17.6 5.6a4.6 4.6 0 0 1 4 4.5v3a4.6 4.6 0 0 1-4.6 4.6h-4.6c-1.6 0-2.6-.7-3.4-1.9l-1-1.6H6.4a1.8 1.8 0 0 1-1.8-1.8v-1a1.9 1.9 0 0 1 2-1.9z"/><circle cx="16.8" cy="11.6" r="2.4"/><circle cx="10.6" cy="12.4" r="1.8"/><path d="M4.6 10.2L1.9 11.2l2.7 1"/></g></g></svg></button>
       <button type="button" id="inku" aria-label="一つ戻す" title="一つ戻す"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.06" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
       <button type="button" id="inkx" aria-label="このページの書き込みを全部消す" title="このページの書き込みを全部消す"><svg viewBox="2 2 20 20" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6"/></svg></button>
     </div>
@@ -199,6 +200,7 @@
     <small>曲は、この iPad の中に保存されます。どこにも送信されません。↑ のボタンで曲をファイルに書き出し、↻ のボタンで、写真はそのままで、めくる場所だけをやり直し、別の場所（ホーム画面のアプリなど）で「ファイルから開く」と取り込めます。</small>
   </div>
 </div>
+<div id="vhint" hidden style="position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center"><div style="background:#fff;color:#111;border-radius:16px;padding:22px 24px;max-width:420px;margin:16px;text-align:center;font-size:17px;line-height:1.6">動画を選ぶと、プレビュー画面が出ます。<br><b>右上の青い ✓ を押してください。</b><br><span style="color:#666;font-size:14px">（下の▶︎は再生ボタンです。押すと音が流れるだけで、選んだことになりません）</span><br><button id="vhintok" type="button" style="margin-top:14px;font-size:18px;padding:10px 36px;border-radius:12px;border:0;background:#2563eb;color:#fff">OK</button></div></div>
 <div id="toast" hidden></div>
 <div id="bk" hidden>
   <div class="box">
@@ -1136,7 +1138,9 @@
   });
   $('go').onclick = function () { running ? stop() : start(); };
   var preCtx = null;                              // created inside the tap on the button: iOS only lets an AudioContext make sound if it was started by a tap
-  $('filebtn').onclick = function () { try { var AC = window.AudioContext || window.webkitAudioContext; preCtx = new AC(); if (preCtx.resume) preCtx.resume(); } catch (e) { preCtx = null; } $('file').click(); };
+  function openPicker() { try { var AC = window.AudioContext || window.webkitAudioContext; preCtx = new AC(); if (preCtx.resume) preCtx.resume(); } catch (e) { preCtx = null; } $('file').click(); }
+  $('filebtn').onclick = function () { var n = 0; try { n = +localStorage.getItem('vhint') || 0; } catch (e) {} if (n >= 3) { openPicker(); return; } try { localStorage.setItem('vhint', n + 1); } catch (e) {} $('vhint').hidden = false; };
+  $('vhintok').onclick = function () { $('vhint').hidden = true; openPicker(); };
   $('file').onchange = function () { if (this.files[0]) testFile(this.files[0]); this.value = ''; };
   $('frac').oninput = function () { $('fracv').textContent = this.value + '%'; if (pager) pager.turner.frac = +this.value / 100; };
   $('prevbars').oninput = function () { $('prevv').textContent = this.value; if (pager) pager.turner.previewBars = +this.value; };
