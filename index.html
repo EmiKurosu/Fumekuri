@@ -133,9 +133,9 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v47</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v50</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
-  <div class="readout" aria-live="off"><span>小節</span><b id="bar">–</b><span id="pg">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;min-width:6.5ch;text-align:right;font-variant-numeric:tabular-nums"></span></div>
+  <div class="readout" aria-live="off"><b id="bar" style="display:none">–</b><span id="pg" style="display:inline-block;width:5ch;text-align:right;font-variant-numeric:tabular-nums">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;width:9.5ch;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"></span></div>
 </header>
 <main>
   <canvas id="page"></canvas>
@@ -789,6 +789,21 @@
       return { y0: (sy.top - sy.first.gap * 2) / s, y1: (sy.bot + sy.first.gap * 2) / s, x0: xs / s, x1: xe / s };
     });
   }
+  // where the music starts on a page photo: {x, y} (picture pixels) = left end and top of the first system, or null
+  function firstInk(img) {
+    var gr = toGray(img, 900), w = gr.w, h = gr.h, m = darkMask(gr), x, y, row = new Float32Array(h), x0 = Math.round(w * 0.06), x1 = Math.round(w * 0.94);
+    for (y = 0; y < h; y++) { var c = 0; for (x = x0; x < x1; x++) c += m[y * w + x]; row[y] = c; }
+    var sm = new Float32Array(h), k;
+    for (y = 0; y < h; y++) { var a0 = Math.max(0, y - 2), a1 = Math.min(h - 1, y + 2), q = 0; for (k = a0; k <= a1; k++) q += row[k]; sm[y] = q / (a1 - a0 + 1); }
+    var srt = Array.prototype.slice.call(sm).sort(function (a, b) { return a - b; }), thr = Math.max(0.08 * (x1 - x0), 0.28 * (srt[Math.floor(h * 0.97)] || 1)), rs = runs(sm, thr), bands = [];
+    rs.forEach(function (r) { var l = bands[bands.length - 1]; if (l && r[0] - l.y1 < 0.012 * h) l.y1 = r[1]; else bands.push({ y0: r[0], y1: r[1] }); });
+    bands = bands.filter(function (b) { return b.y1 - b.y0 > 0.012 * h; });
+    if (!bands.length) return null;
+    var b0 = bands[0], xs = -1;
+    for (x = 0; x < w && xs < 0; x++) { var cnt = 0; for (y = b0.y0; y <= b0.y1; y++) cnt += m[y * w + x]; if (cnt >= 3) xs = x; }
+    if (xs < 0) xs = x0;
+    return { x: xs / gr.s, y: b0.y0 / gr.s };
+  }
   // maps a tapped place on a page photo to "how far through the page's music" (0..1): reading order, weighted by the amount of ink (notes ~ time)
   function inkMap(img) {
     var gr = toGray(img, 900), w = gr.w, h = gr.h, m = darkMask(gr), x, y, row = new Float32Array(h), x0 = Math.round(w * 0.06), x1 = Math.round(w * 0.94);
@@ -864,7 +879,7 @@
     };
   }
 
-  var API = { findFirstBar: firstBarOrCorner, findSystems: findSystems, inkMap: inkMap, buildSong: buildSong };
+  var API = { findFirstBar: firstBarOrCorner, findSystems: findSystems, inkMap: inkMap, firstInk: firstInk, buildSong: buildSong };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.Song = API;
 })(typeof window !== 'undefined' ? window : this);
 
@@ -923,17 +938,29 @@
       g.beginPath(); g.moveTo(bx - 5 * u, by - 5 * u); g.lineTo(bx + 5 * u, by + 5 * u); g.moveTo(bx + 5 * u, by - 5 * u); g.lineTo(bx - 5 * u, by + 5 * u); g.lineWidth = 2.6 * u; g.lineCap = 'round'; g.strokeStyle = '#15803d'; g.stroke(); g.restore();
     }
   }
-  function showPage(p) { shownPage = p; $('pg').textContent = 'p.' + p; $('msg').hidden = true; drawPage(null, 0); }
+  function showPage(p) { if (pkg && pkg.kind === 'song') setTimeout(function () { var l = 'p' + (p + 1); if (pkg.rects[l] && pvRect[l] === undefined && imgs[pkg.rects[l].img]) previewRect(l); }, 400); shownPage = p; $('pg').textContent = 'p.' + p; $('msg').hidden = true; drawPage(null, 0); }
 
   function labText(lab, idx) { return pkg.kind === 'song' ? '●' : lab; }
+  var pvRect = {};
+  function previewRect(label) {                  // what the "next page" popup shows: the left part of the page's first system (clef, key and the first bars), not just one bar
+    var b = pkg.rects[label]; if (!b || !imgs[b.img]) return b;
+    if (pkg.kind !== 'song') return b;
+    if (pvRect[label] === undefined) {
+      var r = null, im = imgs[b.img], W = im.naturalWidth, H = im.naturalHeight;
+      try { var fi = Song.firstInk(im); if (fi) { var x0 = Math.max(0, fi.x - 0.03 * W), wd = Math.min(0.62 * W, W - x0), y0 = Math.max(0, fi.y - 0.018 * H); r = { img: b.img, x0: x0, x1: x0 + wd, y0: y0, y1: Math.min(H, y0 + wd / 1.8) }; } } catch (e) {}   // always the same-shaped window at the start of the music: about two systems
+      pvRect[label] = r;
+    }
+    return pvRect[label] || b;
+  }
   function showPreview(label, page) {
-    var b = pkg.rects[label]; if (!b || !imgs[b.img]) return;
+    var b = previewRect(label); if (!b || !imgs[b.img]) return;
     var c = $('pvc'), g = c.getContext('2d'), w = b.x1 - b.x0, h = b.y1 - b.y0, cw = 560;
-    c.width = cw; c.height = Math.round(cw * h / w); g.fillStyle = '#f4f1e8'; g.fillRect(0, 0, c.width, c.height);
+    cw = 640; c.width = cw; c.height = Math.round(cw * h / w); g.fillStyle = '#f4f1e8'; g.fillRect(0, 0, c.width, c.height);
     g.drawImage(imgs[b.img], b.x0, b.y0, w, h, 0, 0, c.width, c.height);
     $('pvt').textContent = '次のページ p.' + page; $('pvb').textContent = pkg.kind === 'song' ? '冒頭' : label + ' 小節目';
     $('preview').classList.add('on');
   }
+  window.__showPreview = function (l, p) { showPreview(l, p); };
   function hidePreview() { $('preview').classList.remove('on'); }
 
   /* ---------- events from the follower ---------- */
@@ -1527,7 +1554,7 @@
     if (save) { var tl = libList(), nm = p.title || '曲', n2 = nm, k = 2; while (tl.some(function (e) { return e.title === n2; })) n2 = nm + ' (' + (k++) + ')'; p.title = n2; }
     pkg = p; pages = {}; shownPage = null; pager = null; $('title').textContent = p.title || '譜めくりくん';
     maxPage = Math.max.apply(null, Object.keys(p.bar_page).map(function (k) { return p.bar_page[k]; }));
-    startPos = { page: p.bar_page[p.order[0]], pos: 0, mark: null }; refCache = null; mapCache = {};
+    startPos = { page: p.bar_page[p.order[0]], pos: 0, mark: null }; refCache = null; mapCache = {}; pvRect = {};
     $('msg').hidden = false; $('msg').textContent = '楽譜を読み込んでいます…'; $('bar').textContent = '–'; hidePreview();
     var n = 0; imgs = p.images.map(function (f) { var im = new Image(); im.onload = function () { if (++n === p.images.length) { showPage(p.bar_page[p.order[0]]); $('go').disabled = false; } }; im.src = f; return im; });
     if (save) libAdd(p);
