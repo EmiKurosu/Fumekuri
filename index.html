@@ -139,7 +139,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v67</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v68</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><b id="bar" style="display:none">–</b><span id="pg" style="display:inline-block;width:5ch;text-align:right;font-variant-numeric:tabular-nums">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;width:9.5ch;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"></span></div>
 </header>
@@ -179,7 +179,7 @@
   <details><summary aria-label="Settings" title="Settings"><svg viewBox="0.9 0.9 22.2 22.2" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></summary>
     <div class="settings">
       <button type="button" class="closebtn" id="closesettings" aria-label="設定を閉じる">×</button>
-      <label><span>めくる位置（最終小節の中）<b id="fracv">55%</b></span><input type="range" id="frac" min="20" max="90" step="5" value="55"><span style="display:flex;justify-content:space-between;font-size:12px;color:var(--dim)"><span>早め</span><span>遅め</span></span></label>
+      <label><span>めくる位置（最終小節の中）<b id="fracv">55%</b></span><input type="range" id="frac" min="20" max="90" step="5" value="55"><span style="display:flex;justify-content:space-between;font-size:12px;color:var(--dim);margin-top:-8px;line-height:1"><span>早め</span><span>遅め</span></span></label>
       <label><span>次ページの予告（何小節前から）<b id="prevv"></b></span><input type="range" id="prevbars" min="0" max="4" step="1" value="2"></label>
       <label><span>言語 / Language / Sprache</span><select id="langsel"><option value="auto">Auto</option><option value="ja">日本語</option><option value="en">English</option><option value="de">Deutsch</option></select></label>
       <div id="advtempo" style="display:none">
