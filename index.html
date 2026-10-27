@@ -33,7 +33,7 @@
   #msg.alert { display: flex; flex-direction: column; justify-content: center; align-items: center; background: #1b1d23; color: #fff; font-size: 24px; font-weight: 700; line-height: 1.7; white-space: pre-line; padding: 36px; z-index: 6; cursor: pointer; }
   #msg.alert::after { content: '（タップで閉じる）'; display: block; margin-top: 18px; font-size: 15px; font-weight: 400; color: #ffd27a; }
   #msg { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--dim); }
-  #preview { position: absolute; top: 56%; right: 10px; width: min(36%, 400px); background: var(--paper); border: 1px solid #c9c9c9; border-radius: 6px;
+  #preview { position: absolute; top: 48%; right: 10px; width: min(46%, 520px); background: var(--paper); border: 1px solid #c9c9c9; border-radius: 6px;
     box-shadow: 0 2px 10px rgba(0,0,0,.22); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 2; }
   #preview.on { opacity: 1; }
   #preview .cap { display: flex; justify-content: space-between; gap: 8px; padding: 2px 8px; background: #efefef; color: #666; font-size: 12px; font-weight: 500; border-radius: 5px 5px 0 0; }
@@ -72,6 +72,8 @@
   #inkadj label { display: grid; gap: 2px; font-size: 14px; } #inkadj label span { display: flex; justify-content: space-between; }
   #inkadj input[type=range] { width: 100%; min-height: 30px; accent-color: var(--accent); }
   #inkprev { width: 100%; height: 40px; background: #f4f1e8; border-radius: 6px; }
+  button.ib[hidden] { display: none; }
+  button.ib.sel { background: var(--accent); color: #fff; border-color: var(--accent); }
   button.ib { min-height: 48px; width: 48px; padding: 0; display: grid; place-items: center; }
   #fsbar { position: absolute; left: 10px; bottom: 10px; z-index: 4; display: flex; gap: 8px; }
   #fsbar[hidden] { display: none; }
@@ -133,7 +135,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v54</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v57</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><b id="bar" style="display:none">–</b><span id="pg" style="display:inline-block;width:5ch;text-align:right;font-variant-numeric:tabular-nums">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;width:9.5ch;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"></span></div>
 </header>
@@ -166,9 +168,9 @@
 </main>
 <footer>
   <button type="button" id="fsbtn" class="ib" aria-label="Full screen" title="Full screen"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
-  <button id="go" disabled>弾き始める</button><button type="button" id="startreset" class="ib" aria-label="Start from the beginning" title="Start from the beginning"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M4.5 4h2.8v16H4.5zM10 4.5v15L21.5 12z"/></svg></button>
+  <button id="go" disabled>弾き始める</button><button type="button" id="tpause" class="ib" aria-label="Pause" title="Pause" hidden><svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><path d="M7 4.5h3.4v15H7zM13.6 4.5H17v15h-3.4z"/></svg></button><button type="button" id="tplay" class="ib" aria-label="Resume" title="Resume" hidden><svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><path d="M7 4.5v15L19.5 12z"/></svg></button><button type="button" id="startreset" class="ib" aria-label="Start from the beginning" title="Start from the beginning"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M4.5 4h2.8v16H4.5zM10 4.5v15L21.5 12z"/></svg></button>
   <span class="spacer"></span>
-  <label style="color:var(--dim);font-size:13px"><input type="file" id="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.mp4,.mov" hidden><button id="filebtn" type="button">録音で試す</button></label>
+  <label style="color:var(--dim);font-size:13px"><input type="file" id="file" accept="video/*,audio/*" hidden><button id="filebtn" type="button">録音で試す</button></label>
   <input type="file" id="score" accept=".json,application/json" hidden><button id="libbtn" type="button" aria-label="Songs" title="Songs" class="ib"><svg viewBox="1.6 1.8 20.8 20.4" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 6.6Q7.2 2.4 11.8 5.6V16Q7.2 13.2 2.6 15.6Z"/><path d="M21.4 6.6Q16.8 2.4 12.2 5.6V16Q16.8 13.2 21.4 15.6Z"/><path d="M2.6 15.6L3.3 20.8Q7.6 18 11.5 20.8H12.5Q16.4 18 20.7 20.8L21.4 15.6"/><path d="M3 18.2Q7.4 15.4 11.8 18.6M21 18.2Q16.6 15.4 12.2 18.6"/><path d="M5.2 7.9Q7.3 6.5 9.6 7.5M5.2 10.1Q7.3 8.7 9.6 9.7M5.2 12.3Q7.3 10.9 9.6 11.9M18.8 7.9Q16.7 6.5 14.4 7.5M18.8 10.1Q16.7 8.7 14.4 9.7M18.8 12.3Q16.7 10.9 14.4 11.9"/></svg></button>
   <details><summary aria-label="Settings" title="Settings"><svg viewBox="0.9 0.9 22.2 22.2" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></summary>
     <div class="settings">
@@ -194,7 +196,7 @@
     <h2>曲の一覧</h2>
     <div id="liblist"></div>
     <div class="wrow" style="display:flex;gap:10px;flex-wrap:wrap"><button type="button" id="newbtn">＋ 新しい曲を作る</button><button type="button" id="openbtn">ファイルから開く（.json）</button></div>
-    <small>曲は、この iPad の中に保存されます。どこにも送信されません。↑ のボタンで曲をファイルに書き出し、別の場所（ホーム画面のアプリなど）で「ファイルから開く」と取り込めます。</small>
+    <small>曲は、この iPad の中に保存されます。どこにも送信されません。↑ のボタンで曲をファイルに書き出し、↻ のボタンで、写真はそのままで、めくる場所だけをやり直し、別の場所（ホーム画面のアプリなど）で「ファイルから開く」と取り込めます。</small>
   </div>
 </div>
 <div id="toast" hidden></div>
@@ -947,7 +949,7 @@
     if (pkg.kind !== 'song') return b;
     if (pvRect[label] === undefined) {
       var r = null, im = imgs[b.img], W = im.naturalWidth, H = im.naturalHeight;
-      try { var fi = Song.firstInk(im); if (fi) { var x0 = Math.max(0, fi.x - 0.03 * W), wd = Math.min(0.62 * W, W - x0), y0 = Math.max(0, fi.y - 0.018 * H); r = { img: b.img, x0: x0, x1: x0 + wd, y0: y0, y1: Math.min(H, y0 + wd / 1.8) }; } } catch (e) {}   // always the same-shaped window at the start of the music: about two systems
+      try { var fi = Song.firstInk(im); if (fi) { var x0 = Math.max(0, fi.x - 0.03 * W), wd = Math.min(0.5 * W, W - x0), y0 = Math.max(0, fi.y - 0.018 * H); r = { img: b.img, x0: x0, x1: x0 + wd, y0: y0, y1: Math.min(H, y0 + wd / 1.8) }; } } catch (e) {}   // always the same-shaped window at the start of the music: about two systems
       pvRect[label] = r;
     }
     return pvRect[label] || b;
@@ -955,7 +957,7 @@
   function showPreview(label, page) {
     var b = previewRect(label); if (!b || !imgs[b.img]) return;
     var c = $('pvc'), g = c.getContext('2d'), w = b.x1 - b.x0, h = b.y1 - b.y0, cw = 560;
-    cw = 640; c.width = cw; c.height = Math.round(cw * h / w); g.fillStyle = '#f4f1e8'; g.fillRect(0, 0, c.width, c.height);
+    cw = 800; c.width = cw; c.height = Math.round(cw * h / w); g.fillStyle = '#f4f1e8'; g.fillRect(0, 0, c.width, c.height);
     g.drawImage(imgs[b.img], b.x0, b.y0, w, h, 0, 0, c.width, c.height);
     $('pvt').textContent = '次のページ p.' + page; $('pvb').textContent = pkg.kind === 'song' ? '冒頭' : label + ' 小節目';
     $('preview').classList.add('on');
@@ -1019,11 +1021,14 @@
     }).catch(fail);
   }
   function stop() {
-    running = false; if (feeder) { clearInterval(feeder); feeder = null; }
+    running = false; testMode = false; syncTest(); if (feeder) { clearInterval(feeder); feeder = null; }
     try { if (mediaEl) { mediaEl.pause(); mediaEl.remove(); mediaEl = null; } if (node) node.disconnect(); if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); if (ctx) ctx.close(); if (wake) wake.release(); } catch (e) {}
     node = stream = ctx = wake = null; $('go').textContent = '弾き始める'; $('go').classList.remove('on'); log('止めました');
   }
-  var mediaEl = null;
+  var mediaEl = null, testMode = false;
+  function syncTest() { $('tpause').hidden = $('tplay').hidden = !testMode; }
+  $('tpause').onclick = function () { if (!testMode || !ctx) return; try { ctx.suspend(); if (mediaEl) mediaEl.pause(); } catch (e) {} $('tpause').classList.add('sel'); $('tplay').classList.remove('sel'); };
+  $('tplay').onclick = function () { if (!testMode || !ctx) return; try { ctx.resume(); if (mediaEl) mediaEl.play().catch(function () {}); } catch (e) {} $('tplay').classList.add('sel'); $('tpause').classList.remove('sel'); };
   function showErr(t) { var m = $('msg'); m.hidden = false; m.textContent = t; m.classList.add('alert'); m.onclick = function () { m.hidden = true; m.onclick = null; }; log(t); }
   new MutationObserver(function () { if ($('msg').hidden) $('msg').classList.remove('alert'); }).observe($('msg'), { attributes: true, attributeFilter: ['hidden'] });
   function attachTap(srcNode, feed) {              // feed the raw samples of an audio node to feed()
@@ -1040,7 +1045,7 @@
     el.src = URL.createObjectURL(file); mediaEl = el;
     var ms = ctx.createMediaElementSource(el); ms.connect(ctx.destination);
     return attachTap(ms, function (c) { if (pager) pager.feed(c); }).then(function (nd) {
-      node = nd; running = true; $('go').textContent = '止める'; $('go').classList.add('on');
+      node = nd; running = true; testMode = true; syncTest(); $('go').textContent = '止める'; $('go').classList.add('on');
       el.onended = function () { setTimeout(stop, 800); };
       var go = function () { return (ctx.resume ? ctx.resume() : Promise.resolve()).catch(function () {}).then(function () { return el.play(); }); };
       return go().then(function () { if (ctx.state !== 'running') throw new Error('suspended'); log('録音を再生中（動画/音声）'); $('msg').hidden = true; }).catch(function () {
@@ -1055,13 +1060,13 @@
     var AC = window.AudioContext || window.webkitAudioContext; ctx = preCtx && preCtx.state !== 'closed' ? preCtx : new AC(); preCtx = null; if (ctx.resume) ctx.resume();
     showErr('録音を読み込んでいます…（動画は少し時間がかかります）');
     var isVid = /^video\//.test(file.type) || /\.(mov|mp4|m4v)$/i.test(file.name || '');
-    if (isVid) { testViaMedia(file).catch(function (e) { showErr('この動画は読み込めませんでした（' + (e && e.message || e) + '）。'); }); return; }
+    if (isVid && file.size > 150e6) { testViaMedia(file).then(function () { testMode = true; syncTest(); }).catch(function (e) { showErr('この動画は読み込めませんでした（' + (e && e.message || e) + '）。'); }); return; }   // very large videos: play them instead of decoding them in memory
     var decode = function (ab) { return new Promise(function (ok, ng) { var p = ctx.decodeAudioData(ab, ok, ng); if (p && p.then) p.then(ok, ng); }); };
     file.arrayBuffer().then(decode).then(function (buf) {
       makePager(); $('msg').hidden = true; var data = buf.getChannelData(0), pos = 0, t0 = ctx.currentTime, srcn = ctx.createBufferSource();
       srcn.buffer = buf; srcn.connect(ctx.destination); srcn.start();
       if (ctx.state !== 'running') { showErr('▶ ここをタップすると再生が始まります'); $('msg').style.cursor = 'pointer'; $('msg').onclick = function () { $('msg').onclick = null; $('msg').style.cursor = ''; $('msg').classList.remove('alert'); ctx.resume().then(function () { $('msg').hidden = true; }); }; }
-      running = true; $('go').textContent = '止める'; $('go').classList.add('on'); log('録音を再生中 ' + buf.duration.toFixed(0) + ' s');
+      running = true; testMode = true; syncTest(); $('go').textContent = '止める'; $('go').classList.add('on'); log('録音を再生中 ' + buf.duration.toFixed(0) + ' s');
       feeder = setInterval(function () {
         var upto = Math.min(data.length, Math.floor((ctx.currentTime - t0) * buf.sampleRate));
         if (upto > pos) { pager.feed(data.subarray(pos, upto)); pos = upto; }
@@ -1207,6 +1212,15 @@
     W = { imgs: [], file: null, frames: null, ex: null, sr: 0, capture: false, marks: [], taps: [], rate: 1, ready: false, analyzing: false };
     $('wtitle').value = ''; $('wthumbs').innerHTML = ''; $('waudinfo').innerHTML = '<small>まだ選んでいません</small>'; $('wsetmsg').textContent = ''; $('wnext').disabled = true;
     $('wiz').hidden = false; wshow('wsetup'); det.open = false;
+  }
+  function wredo(e) {                            // redo only the turn marks of a saved song: its page pictures stay, the recording and the taps are done again
+    store.getKey('song:' + e.id, function (t) {
+      var p; try { p = JSON.parse(t); } catch (x) { p = null; } if (!p || p.kind !== 'song') return;
+      $('lib').hidden = true; wopen();
+      W.redoId = e.id; $('wtitle').value = p.title || '';
+      W.imgs = p.images.map(function (d, i) { var r = p.rects && p.rects['p' + (i + 1)]; return { data: d, w: p.sizes[i].w, h: p.sizes[i].h, thumb: d, rect: r ? { x0: r.x0, x1: r.x1, y0: r.y0, y1: r.y1 } : null }; });
+      wthumbs(); wcheck(); $('wsetmsg').textContent = '写真はそのまま使います。録音を選び直して、めくる場所を印付けし直します。';
+    });
   }
   function wclose() { if (W && W.timer) clearInterval(W.timer); if (W && W.stream) { try { W.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} } try { var m = $('wmedia'); m.pause(); m.removeAttribute('src'); m.load(); } catch (e) {} if (W && W.ctx) { try { W.ctx.close(); } catch (e) {} } W = null; $('wiz').hidden = true; }
   function wcheck() { $('wnext').disabled = !(W.imgs.length >= 2 && W.file); $('wmic').disabled = W.imgs.length < 2; }
@@ -1404,7 +1418,9 @@
           frames: W.frames, rms: W.rms, frameSec: ex.hop / W.sr, t0: ex.nfft / 2 / W.sr, marks: marks, title: $('wtitle').value.trim() || '新しい曲',
           images: W.imgs.map(function (i) { return i.data; }), sizes: W.imgs.map(function (i) { return { w: i.w, h: i.h }; }), firstBars: W.imgs.map(function (i) { return i.rect; })
         });
-        var text = JSON.stringify(p); wclose(); boot(p, text); backupPrompt(p, text);
+        var text = JSON.stringify(p), oldId = W.redoId; wclose();
+        if (oldId) { lib = lib.filter(function (x) { return x.id !== oldId; }); store.delKey('song:' + oldId); libSave(); }       // the redone song takes the place of the old one (same name, so its handwriting stays)
+        boot(p, text); backupPrompt(p, text);
         $('msg').hidden = false; $('msg').textContent = '曲ができました。「弾き始める」を押して弾いてみてください。'; setTimeout(function () { if (!running) $('msg').hidden = true; }, 5000);
       } catch (e) { wshow('wtapview'); $('wstat').textContent = '作れませんでした: ' + (e && e.message || e); }
     }, 50);
@@ -1618,6 +1634,9 @@
       if (libArm === e.id) { del.classList.add('arm'); del.textContent = '消す？'; }
       var ex = document.createElement('button'); ex.type = 'button'; ex.setAttribute('aria-label', 'Export'); ex.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M8 7l4-4 4 4M5 12v8h14v-8"/></svg>';
       ex.onclick = function (ev) { ev.stopPropagation(); libExport(e); }; r.appendChild(ex);
+      var rd = document.createElement('button'); rd.type = 'button'; rd.setAttribute('aria-label', 'Redo turn points'); rd.title = 'Redo turn points';
+      rd.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg>';
+      rd.onclick = function (ev) { ev.stopPropagation(); wredo(e); }; r.appendChild(rd);
       r.appendChild(del); r.onclick = function () { libArm = null; libOpen(e.id); }; box.appendChild(r);
     });
   }
