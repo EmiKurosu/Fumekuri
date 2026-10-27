@@ -150,7 +150,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v72</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v73</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><b id="bar" style="display:none">–</b><span id="pg" style="display:inline-block;width:5ch;text-align:right;font-variant-numeric:tabular-nums">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;width:9.5ch;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"></span></div>
 </header>
@@ -1026,7 +1026,7 @@
       g.beginPath(); g.moveTo(bx - 5 * u, by - 5 * u); g.lineTo(bx + 5 * u, by + 5 * u); g.moveTo(bx + 5 * u, by - 5 * u); g.lineTo(bx - 5 * u, by + 5 * u); g.lineWidth = 2.6 * u; g.lineCap = 'round'; g.strokeStyle = '#15803d'; g.stroke(); g.restore();
     }
   }
-  function showPage(p) { if (pkg && pkg.kind === 'song') setTimeout(function () { var l = 'p' + (p + 1); if (pkg.rects[l] && pvRect[l] === undefined && imgs[pkg.rects[l].img]) previewRect(l); }, 400); shownPage = p; $('pg').textContent = 'p.' + p; $('msg').hidden = true; jumpUI(); paUI(); drawPage(null, 0); }
+  function showPage(p) { if (pkg && pkg.kind === 'song') setTimeout(function () { var l = 'p' + (p + 1); if (pkg.rects[l] && pvRect[l] === undefined && imgs[pkg.rects[l].img]) previewRect(l); }, 400); shownPage = p; $('pg').textContent = 'p.' + p; $('msg').hidden = true; jumpUI(); paUI(); drawPage(null, 0); setTimeout(function () { try { var r = pageRegion(p + 1); if (r && paOf(p + 1)) paSrc(r.img, p + 1); } catch (e) {} }, 700); }
 
   function labText(lab, idx) { return pkg.kind === 'song' ? '●' : lab; }
   var pvRect = {};
@@ -1569,28 +1569,65 @@
   function inkLoad() { ink.strokes = {}; if (!pkg) return; store.getKey(inkKey(), function (t) { try { if (t) ink.strokes = JSON.parse(t) || {}; } catch (e) {} drawPage(null, 0); }); }
   function inkSave() { clearTimeout(ink.saveT); ink.saveT = setTimeout(function () { store.putKey(inkKey(), JSON.stringify(ink.strokes)); }, 500); }
   /* ---------- page picture adjustment: brightness / contrast / tone, per page (and "same for all pages") ---------- */
-  var pa = {}, paCache = [], paT = null, PA_PAPER = [247, 245, 238], PA_INK = 24;
+  var pa = {}, paCache = [], paT = null, PA_PAPER = [250, 249, 245], PA_INK = 24;
   function paKey() { return 'padj:' + (pkg && pkg.title || '') + ':' + (pkg ? pkg.order.length : 0); }
   function paSave() { clearTimeout(paT); paT = setTimeout(function () { store.putKey(paKey(), JSON.stringify(pa)); }, 500); }
   function paLoad() { pa = {}; paCache = []; if (!pkg) return; store.getKey(paKey(), function (t) { try { if (t) pa = JSON.parse(t) || {}; } catch (e) {} paUI(); drawPage(null, 0); }); }
   function paOf(p) { var a = pa[p]; return a && (a.b || a.c || a.t || a.A) ? a : null; }
-  function paLut(a) {
-    var k = 1 + a.c / 70, off = a.b * 1.6, tr = a.t * 0.9, tg = a.t * 0.1, tb = -a.t * 0.9, L = [new Uint8ClampedArray(256), new Uint8ClampedArray(256), new Uint8ClampedArray(256)], v, ch, v1, base, tn = [tr, tg, tb];
-    for (ch = 0; ch < 3; ch++) for (v = 0; v < 256; v++) {
-      v1 = v; if (a.A) v1 = (v - a.A.lo) * (PA_PAPER[ch] - PA_INK) / Math.max(30, a.A.hi[ch] - a.A.lo) + PA_INK;       // automatic levels: this page's ink -> common dark, this page's paper -> common paper colour
-      base = (v1 - 128) * k + 128 + off; L[ch][v] = base + tn[ch];
-    }
+  function paLut(a) {                           // brightness / contrast / tone (the sliders)
+    var k = 1 + a.c / 70, off = a.b * 1.6, tn = [a.t * 0.9, a.t * 0.1, -a.t * 0.9], L = [new Uint8ClampedArray(256), new Uint8ClampedArray(256), new Uint8ClampedArray(256)], v, ch, base;
+    for (ch = 0; ch < 3; ch++) for (v = 0; v < 256; v++) { base = (v - 128) * k + 128 + off; L[ch][v] = base + tn[ch]; }
     return L;
+  }
+  function paFlat(im) {                          // "automatic": make the paper of this page uniformly the common paper colour (removes a colour cast, shadows and uneven light), ink -> common dark
+    var W = im.naturalWidth, H = im.naturalHeight, sc = Math.min(1, 640 / W), aw = Math.max(16, Math.round(W * sc)), ah = Math.max(16, Math.round(H * sc));
+    var c = document.createElement('canvas'); c.width = aw; c.height = ah; var g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(im, 0, 0, aw, ah);
+    var d = g.getImageData(0, 0, aw, ah).data, CS = 16, gx = Math.ceil(aw / CS), gy = Math.ceil(ah / CS), nc = gx * gy, i, x, y, ch, cell = new Float32Array(nc * 3), cl = new Float32Array(nc);
+    function pct(h, tot, q) { var acc = 0, t = tot * q, b; for (b = 0; b < 256; b++) { acc += h[b]; if (acc >= t) return b; } return 255; }
+    var hl = new Uint32Array(256);
+    for (y = 0; y < gy; y++) for (x = 0; x < gx; x++) {                           // paper colour of every cell: the 80th percentile of each channel (ink covers less than that)
+      var H3 = [new Uint32Array(256), new Uint32Array(256), new Uint32Array(256)], n = 0, yy, xx, p;
+      for (yy = y * CS; yy < Math.min(ah, y * CS + CS); yy++) for (xx = x * CS; xx < Math.min(aw, x * CS + CS); xx++) { p = (yy * aw + xx) * 4; H3[0][d[p]]++; H3[1][d[p + 1]]++; H3[2][d[p + 2]]++; n++; }
+      var ci = y * gx + x; for (ch = 0; ch < 3; ch++) cell[ci * 3 + ch] = pct(H3[ch], n, 0.8); cl[ci] = (cell[ci * 3] * 299 + cell[ci * 3 + 1] * 587 + cell[ci * 3 + 2] * 114) / 1000; hl[Math.round(cl[ci])]++;
+    }
+    var thr = pct(hl, nc, 0.5), gl = [0, 0, 0], gn = 0;                          // the page's overall paper colour: the cells in the brighter half
+    var gh = [new Uint32Array(256), new Uint32Array(256), new Uint32Array(256)];
+    for (i = 0; i < nc; i++) if (cl[i] >= thr) { for (ch = 0; ch < 3; ch++) gh[ch][Math.round(cell[i * 3 + ch])]++; gn++; }
+    for (ch = 0; ch < 3; ch++) gl[ch] = Math.max(60, pct(gh[ch], gn, 0.5));
+    var glum = (gl[0] * 299 + gl[1] * 587 + gl[2] * 114) / 1000;
+    for (i = 0; i < nc; i++) if (cl[i] < 0.6 * glum) for (ch = 0; ch < 3; ch++) cell[i * 3 + ch] = gl[ch];     // not paper (the desk, a hand): leave it alone
+    for (var pass = 0; pass < 2; pass++) {                                        // smooth the paper map a little
+      var tmp = new Float32Array(cell.length);
+      for (y = 0; y < gy; y++) for (x = 0; x < gx; x++) for (ch = 0; ch < 3; ch++) { var sum = 0, cn = 0; for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) { var X = x + dx, Y = y + dy; if (X >= 0 && X < gx && Y >= 0 && Y < gy) { sum += cell[(Y * gx + X) * 3 + ch]; cn++; } } tmp[(y * gx + x) * 3 + ch] = sum / cn; }
+      cell = tmp;
+    }
+    var mc = document.createElement('canvas'); mc.width = gx; mc.height = gy; var mg = mc.getContext('2d'), md = mg.createImageData(gx, gy);
+    for (i = 0; i < nc; i++) { md.data[i * 4] = cell[i * 3]; md.data[i * 4 + 1] = cell[i * 3 + 1]; md.data[i * 4 + 2] = cell[i * 3 + 2]; md.data[i * 4 + 3] = 255; }
+    mg.putImageData(md, 0, 0);
+    var bc = document.createElement('canvas'); bc.width = W; bc.height = H; var bg = bc.getContext('2d', { willReadFrequently: true }); bg.imageSmoothingEnabled = true; bg.imageSmoothingQuality = 'high';
+    bg.drawImage(mc, 0, 0, gx, gy, -CS / aw * W * 0 + (CS / 2 - CS / 2), 0, gx * CS / aw * W, gy * CS / ah * H);   // the paper map, enlarged to the size of the page
+    var lum = new Uint8Array(aw * ah), h2 = new Uint32Array(256);
+    for (i = 0; i < aw * ah; i++) { lum[i] = (d[i * 4] * 299 + d[i * 4 + 1] * 587 + d[i * 4 + 2] * 114) / 1000; h2[lum[i]]++; }
+    var ink = pct(h2, aw * ah, 0.01) * PA_PAPER[1] / Math.max(60, glum);        // darkest ink level, as it will be after the paper is whitened
+    return { bgCanvas: bc, ink: Math.min(ink, 90) };
   }
   function paSrc(img, page) {                    // the picture of a page with its adjustment applied (the original when nothing is changed)
     var a = paOf(page), im = imgs[img]; if (!a || !im || !im.complete) return im;
-    var key = img + '|' + a.b + '|' + a.c + '|' + a.t + '|' + (a.A ? a.A.lo + ',' + a.A.hi.join(',') : ''), i;
+    var key = img + '|' + a.b + '|' + a.c + '|' + a.t + '|' + (a.A ? 'A' : ''), i;
     for (i = 0; i < paCache.length; i++) if (paCache[i].key === key) return paCache[i].cv;
     var W = im.naturalWidth, H = im.naturalHeight, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
     var g = cv.getContext('2d', { willReadFrequently: true }); g.drawImage(im, 0, 0);
     try {
-      var d = g.getImageData(0, 0, W, H), px = d.data, L = paLut(a), n = px.length;
-      for (i = 0; i < n; i += 4) { px[i] = L[0][px[i]]; px[i + 1] = L[1][px[i + 1]]; px[i + 2] = L[2][px[i + 2]]; }
+      var d = g.getImageData(0, 0, W, H), px = d.data, L = paLut(a), n = px.length, ch;
+      if (a.A) {
+        var F = paFlat(im), bd = F.bgCanvas.getContext('2d').getImageData(0, 0, W, H).data, ik = F.ink, k2 = (PA_PAPER[1] - PA_INK) / Math.max(40, PA_PAPER[1] - ik), rc = [new Float32Array(256), new Float32Array(256), new Float32Array(256)], v;
+        for (ch = 0; ch < 3; ch++) for (v = 0; v < 256; v++) rc[ch][v] = Math.min(3, PA_PAPER[ch] / Math.max(40, v));
+        for (i = 0; i < n; i += 4) {
+          var r = px[i] * rc[0][bd[i]], gg = px[i + 1] * rc[1][bd[i + 1]], bb = px[i + 2] * rc[2][bd[i + 2]];
+          r = (r - ik) * k2 + PA_INK; gg = (gg - ik) * k2 + PA_INK; bb = (bb - ik) * k2 + PA_INK;
+          px[i] = L[0][r < 0 ? 0 : r > 255 ? 255 : r | 0]; px[i + 1] = L[1][gg < 0 ? 0 : gg > 255 ? 255 : gg | 0]; px[i + 2] = L[2][bb < 0 ? 0 : bb > 255 ? 255 : bb | 0];
+        }
+      } else for (i = 0; i < n; i += 4) { px[i] = L[0][px[i]]; px[i + 1] = L[1][px[i + 1]]; px[i + 2] = L[2][px[i + 2]]; }
       g.putImageData(d, 0, 0);
     } catch (e) { return im; }
     paCache.push({ key: key, cv: cv }); if (paCache.length > 3) paCache.shift();
@@ -1598,7 +1635,7 @@
   }
   function paColor(c) {                          // "cover" strokes use the paper colour: pass it through the same adjustment
     var a = paOf(shownPage), m = /^rgb\((\d+),(\d+),(\d+)\)$/.exec(c || ''); if (!a || !m) return c;
-    var L = paLut(a); return 'rgb(' + L[0][+m[1]] + ',' + L[1][+m[2]] + ',' + L[2][+m[3]] + ')';
+    var L = paLut(a), v = a.A ? PA_PAPER : [+m[1], +m[2], +m[3]]; return 'rgb(' + L[0][v[0]] + ',' + L[1][v[1]] + ',' + L[2][v[2]] + ')';
   }
   function paUI() {
     var a = pa[shownPage] || { b: 0, c: 0, t: 0 };
@@ -1606,28 +1643,9 @@
     ['b', 'c', 't'].forEach(function (k) { var v = a[k]; $('padj' + k + 'v').textContent = (v > 0 ? '+' : '') + v; });
     $('adjt').classList.toggle('sel', !$('padj').hidden || !!paOf(shownPage));
   }
-  function paStats(src, x0, y0, w, h) {        // paper colour (per channel) and ink level of a page picture, from a small copy
-    var sc = Math.min(1, 320 / w), cw = Math.max(8, Math.round(w * sc)), ch = Math.max(8, Math.round(h * sc)), c = document.createElement('canvas'); c.width = cw; c.height = ch;
-    var g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(src, x0, y0, w, h, 0, 0, cw, ch);
-    var d = g.getImageData(0, 0, cw, ch).data, n = cw * ch, lum = new Uint8Array(n), hl = new Uint32Array(256), i, j;
-    for (i = 0, j = 0; i < d.length; i += 4, j++) { lum[j] = (d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000; hl[lum[j]]++; }
-    function pct(hist, tot, q) { var acc = 0, t = tot * q, b; for (b = 0; b < 256; b++) { acc += hist[b]; if (acc >= t) return b; } return 255; }
-    var lo = pct(hl, n, 0.01), thr = pct(hl, n, 0.55), top = pct(hl, n, 0.97), H = [new Uint32Array(256), new Uint32Array(256), new Uint32Array(256)], cnt = 0;
-    for (i = 0, j = 0; i < d.length; i += 4, j++) if (lum[j] >= thr && lum[j] <= top) { H[0][d[i]]++; H[1][d[i + 1]]++; H[2][d[i + 2]]++; cnt++; }
-    if (!cnt) return null;
-    return { lo: lo, hi: [pct(H[0], cnt, 0.5), pct(H[1], cnt, 0.5), pct(H[2], cnt, 0.5)] };
-  }
-  var paBusy = false;
-  function paAuto() {                            // look at every page and give each the change it needs, so that all pages end up with the same paper colour and the same dark ink
-    if (!pkg || paBusy) return; paBusy = true; var p = 1, N = maxPage;
-    (function next() {
-      if (p > N) { paBusy = false; paUI(); drawPage(null, 0); paSave(); toast(_t('全ページを揃えました')); return; }
-      try {
-        var reg = pageRegion(p), im = reg && imgs[reg.img];
-        if (im && im.complete) { var st = paStats(im, reg.x0, reg.y0, reg.x1 - reg.x0, reg.y1 - reg.y0), a = pa[p] = pa[p] || { b: 0, c: 0, t: 0 }; a.A = st && st.hi[0] - st.lo > 60 && st.hi[1] - st.lo > 60 && st.hi[2] - st.lo > 60 ? st : null; }
-      } catch (e) {}
-      toast(p + ' / ' + N); p++; setTimeout(next, 10);
-    })();
+  function paAuto() {                            // every page gets the change it needs (worked out when the page is shown), so that all pages look alike
+    if (!pkg) return; for (var p = 1; p <= maxPage; p++) { var a = pa[p] = pa[p] || { b: 0, c: 0, t: 0 }; a.A = 1; }
+    paUI(); paSave(); drawPage(null, 0); toast(_t('全ページを揃えました'));
   }
   var paRaf = 0;
   ['b', 'c', 't'].forEach(function (k) {
