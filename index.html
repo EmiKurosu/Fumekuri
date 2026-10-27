@@ -101,7 +101,12 @@
   #install { position: fixed; inset: 0; z-index: 40; background: var(--bg); overflow-y: auto; display: grid; place-items: center; padding: 20px; }
   #install[hidden] { display: none; }
   #install .box { max-width: 560px; display: grid; gap: 14px; line-height: 1.7; } #install h2 { font-size: 20px; margin: 0; } #install p, #install ol { margin: 0; } #install ol { padding-left: 1.3em; }
-  #install #installskip { justify-self: start; font-size: 13px; color: var(--dim); }
+  #install #installskip { justify-self: start; min-height: 48px; padding: 0 22px; font-size: 17px; font-weight: 600; background: var(--accent); color: #fff; border-color: var(--accent); }
+  #bk { position: fixed; inset: 0; z-index: 35; background: rgba(20,22,27,.55); display: grid; place-items: center; padding: 20px; }
+  #bk[hidden] { display: none; }
+  #bk .box { background: var(--bg); border-radius: 16px; padding: 22px; max-width: 520px; display: grid; gap: 12px; line-height: 1.7; } #bk h2 { font-size: 19px; margin: 0; } #bk p { margin: 0; }
+  #bk #bkdo { min-height: 50px; font-size: 17px; font-weight: 600; background: var(--accent); color: #fff; border-color: var(--accent); }
+  #bk .quiet { background: transparent; border-color: transparent; color: var(--dim); }
   #toast { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); z-index: 30; background: rgba(20,22,27,.94); color: #fff; padding: 12px 20px; border-radius: 12px; font-size: 18px; font-weight: 600; pointer-events: none; }
   #toast[hidden] { display: none; }
   #wiz { position: fixed; inset: 0; z-index: 20; background: var(--bg); overflow-y: auto; -webkit-overflow-scrolling: touch; padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
@@ -128,7 +133,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v38</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v43</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><span>小節</span><b id="bar">–</b><span id="pg">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;min-width:6.5ch;text-align:right;font-variant-numeric:tabular-nums"></span></div>
 </header>
@@ -160,7 +165,7 @@
   <div id="preview" aria-live="polite"><div class="cap"><span id="pvt">次のページ</span><span id="pvb"></span></div><canvas id="pvc"></canvas></div>
 </main>
 <footer>
-  <button type="button" id="fsbtn" class="ib" aria-label="Full screen" title="Full screen"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button><button type="button" id="vwreset" class="ib" aria-label="Reset zoom" title="Reset zoom"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg></button>
+  <button type="button" id="fsbtn" class="ib" aria-label="Full screen" title="Full screen"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
   <button id="go" disabled>弾き始める</button><button type="button" id="startreset" class="ib" aria-label="Start from the beginning" title="Start from the beginning"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M4.5 4h2.8v16H4.5zM10 4.5v15L21.5 12z"/></svg></button>
   <span class="spacer"></span>
   <label style="color:var(--dim);font-size:13px"><input type="file" id="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.mp4,.mov" hidden><button id="filebtn" type="button">録音で試す</button></label>
@@ -193,17 +198,27 @@
   </div>
 </div>
 <div id="toast" hidden></div>
+<div id="bk" hidden>
+  <div class="box">
+    <h2 id="bktitle"></h2>
+    <p>バックアップを作ることをおすすめします。ホーム画面から開いて作った曲のデータは、ホーム画面アイコンの削除や不具合で消えることがあります。</p>
+    <p>「バックアップを作る」を押して、「"ファイル"に保存」を選ぶと、曲のデータをファイルとして残せます。あとで「ファイルから開く」で、いつでも元に戻せます。</p>
+    <button type="button" id="bkdo">バックアップを作る</button>
+    <button type="button" id="bklater" class="quiet">あとで</button>
+  </div>
+</div>
 <div id="install" hidden>
   <div class="box">
-    <h2>ホーム画面に追加して使ってください</h2>
-    <p>このアプリは、ホーム画面のアイコンから開いたときに、画面全体を楽譜に使えます。曲もそのアイコンのアプリの中に保存されます。Safari とは保存場所が別なので、最初から、ホーム画面のアイコンで使うのがおすすめです。</p>
+    <h2>ホーム画面に追加して使うのがおすすめです</h2>
+    <p>このアプリは、ホーム画面のアイコンから開くと、全画面表示で楽譜を使えます。曲もそのアイコンのアプリの中に保存されます。Safari とは保存場所が別なので、最初から、ホーム画面のアイコンで使うのがおすすめです。</p>
+    <p>ホーム画面にアイコンを追加するには、まず Safari でこのアプリを開く必要があります。最初に、下の「Safari で使う」ボタンをタップしてください。そのあと、次の手順で追加します。</p>
+    <button type="button" id="installskip">Safari で使う</button>
     <ol>
       <li>画面上部の共有ボタン（四角から上向きの矢印が出たアイコン）をタップします。</li>
       <li>メニューの「ホーム画面に追加」をタップします。</li>
       <li>右上の「追加」をタップします。</li>
       <li>ホーム画面にできた「譜めくりくん」のアイコンから開きます。</li>
     </ol>
-    <button type="button" id="installskip">今回は Safari のまま使う</button>
   </div>
 </div>
 <div id="lightbox" hidden><img id="lbimg" alt="楽譜のページ"><div class="bar"><button type="button" id="lbprev">◀ 前</button><span id="lbcap"></span><button type="button" id="lbnext">次 ▶</button><button type="button" id="lbclose">閉じる</button></div></div>
@@ -1073,10 +1088,10 @@
     }, { passive: true });
     m.addEventListener('touchmove', function (e) {
       if (!pz || e.touches.length !== 2 || !view) return; var a = cpt(e.touches[0]), b = cpt(e.touches[1]), cx = (a[0] + b[0]) / 2, cy = (a[1] + b[1]) / 2;
-      var z = Math.max(0.4, Math.min(5, pz.z0 * (Math.hypot(a[0] - b[0], a[1] - b[1]) / pz.d0))), s = view.s0 * z, c = $('page');
+      var z = Math.max(1, Math.min(5, pz.z0 * (Math.hypot(a[0] - b[0], a[1] - b[1]) / pz.d0))), s = view.s0 * z, c = $('page');
       adj[shownPage] = { z: z, cx: pz.px - (cx - c.width / 2) / s, cy: pz.py - (cy - c.height / 2) / s }; drawPage(null, 0);
     }, { passive: true });
-    m.addEventListener('touchend', function (e) { if (pz && e.touches.length < 2) { pz = null; viewSave(); } }, { passive: true });
+    m.addEventListener('touchend', function (e) { if (pz && e.touches.length < 2) { pz = null; var q = adj[shownPage]; if (q && q.z < 1.08) { delete adj[shownPage]; drawPage(null, 0); } viewSave(); } }, { passive: true });   // pinched back to about the full page: snap to exactly the page
     var px = null; m.addEventListener('pointerdown', function (e) { if (e.pointerType === 'mouse' && !ink.on) px = e.clientX; });
     m.addEventListener('pointerup', function (e) { if (px === null) return; var dx = e.clientX - px; px = null; if (Math.abs(dx) > 80) manual(dx < 0 ? 1 : -1); });
   })();
@@ -1321,7 +1336,7 @@
           frames: W.frames, rms: W.rms, frameSec: ex.hop / W.sr, t0: ex.nfft / 2 / W.sr, marks: marks, title: $('wtitle').value.trim() || '新しい曲',
           images: W.imgs.map(function (i) { return i.data; }), sizes: W.imgs.map(function (i) { return { w: i.w, h: i.h }; }), firstBars: W.imgs.map(function (i) { return i.rect; })
         });
-        var text = JSON.stringify(p); wclose(); boot(p, text);
+        var text = JSON.stringify(p); wclose(); boot(p, text); backupPrompt(p, text);
         $('msg').hidden = false; $('msg').textContent = '曲ができました。「弾き始める」を押して弾いてみてください。'; setTimeout(function () { if (!running) $('msg').hidden = true; }, 5000);
       } catch (e) { wshow('wtapview'); $('wstat').textContent = '作れませんでした: ' + (e && e.message || e); }
     }, 50);
@@ -1455,11 +1470,10 @@
   $('inkx').onclick = function () { var b = this; if (!clrArm) { b.textContent = '?'; clrArm = setTimeout(function () { clrArm = null; b.textContent = '全消し'; }, 3000); return; } clearTimeout(clrArm); clrArm = null; b.textContent = '全消し'; ink.strokes[shownPage] = []; inkSave(); drawPage(null, 0); };
   inkUI();
   function setFull(on) {
-    document.body.classList.toggle('full', on); $('fsbar').hidden = !on; 
+    adj = {}; viewSave(); document.body.classList.toggle('full', on); $('fsbar').hidden = !on; 
     setTimeout(function () { drawPage(null, 0); }, 60);
   }
   $('fsbtn').onclick = function () { setFull(!document.body.classList.contains('full')); };
-  $('vwreset').onclick = function () { delete adj[shownPage]; viewSave(); drawPage(null, 0); };
   $('fsstart').onclick = function () { $('startreset').click(); };
   $('fsback').onclick = function () { setFull(false); };
   $('fsgo').onclick = function () { $('go').click(); };
@@ -1511,13 +1525,17 @@
       $('msg').hidden = false; $('msg').textContent = '左下の本のボタンから、曲を選んでください。';
     }
   }
-  function libExport(e) {
-    store.getKey('song:' + e.id, function (t) {
-      if (!t) return; var name = (e.title || 'song').replace(/[\\\/:*?"<>|]/g, '_') + '.json', f = null;
-      try { f = new File([t], name, { type: 'application/json' }); } catch (x) {}
-      if (f && navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f], title: e.title }).catch(function () {}); return; }
-      var u = URL.createObjectURL(new Blob([t], { type: 'application/json' })), a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 5000);
-    });
+  function exportText(title, t) {
+    var name = (title || 'song').replace(/[\\\/:*?"<>|]/g, '_') + '.json', f = null;
+    try { f = new File([t], name, { type: 'application/json' }); } catch (x) {}
+    if (f && navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f], title: title }).catch(function () {}); return; }
+    var u = URL.createObjectURL(new Blob([t], { type: 'application/json' })), a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 5000);
+  }
+  function libExport(e) { store.getKey('song:' + e.id, function (t) { if (t) exportText(e.title, t); }); }
+  function backupPrompt(p, text) {
+    $('bktitle').textContent = '「' + (p.title || '') + '」を作りました'; $('bk').hidden = false;
+    $('bkdo').onclick = function () { exportText(p.title, text); };
+    $('bklater').onclick = function () { $('bk').hidden = true; };
   }
   var libArm = null;
   function libRender() {
@@ -1547,6 +1565,14 @@
     try { var c = document.createElement('canvas'); c.width = c.height = 180; var g = c.getContext('2d'); g.fillStyle = '#b45309'; g.fillRect(0, 0, 180, 180); g.fillStyle = '#fff'; g.fillRect(48, 38, 84, 104); g.strokeStyle = '#b45309'; g.lineWidth = 3; for (var i = 0; i < 4; i++) { g.beginPath(); g.moveTo(58, 62 + i * 14); g.lineTo(122, 62 + i * 14); g.stroke(); }
       g.fillStyle = '#b45309'; g.beginPath(); g.moveTo(132, 142); g.lineTo(132, 100); g.lineTo(100, 142); g.closePath(); g.fill();
       var l = document.createElement('link'); l.rel = 'apple-touch-icon'; l.href = c.toDataURL('image/png'); document.head.appendChild(l); } catch (e) {}
+  })();
+  (function () {                                                    // home-screen app: it may start from an old cached copy, so look at the newest file and reload once if it differs
+    var sa = navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+    if (!sa || !window.fetch || /[?&]fresh=/.test(location.search)) return;
+    var mine = ($('ver') || {}).textContent;
+    fetch(location.pathname + '?chk=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
+      var m = t.match(/id="ver"[^>]*>(v\d+)</); if (m && mine && m[1] !== mine) location.replace(location.pathname + '?fresh=' + Date.now());
+    }).catch(function () {});
   })();
   var inline = document.getElementById('pkgdata');
   store.getKey('songs', function (t) {
