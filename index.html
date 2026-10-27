@@ -105,6 +105,9 @@
   #install[hidden] { display: none; }
   #install .box { max-width: 560px; display: grid; gap: 14px; line-height: 1.7; } #install h2 { font-size: 20px; margin: 0; } #install p, #install ol { margin: 0; } #install ol { padding-left: 1.3em; }
   #install #installskip { justify-self: start; min-height: 48px; padding: 0 22px; font-size: 17px; font-weight: 600; background: var(--accent); color: #fff; border-color: var(--accent); }
+  #help { position: fixed; inset: 0; z-index: 44; background: var(--bg); overflow-y: auto; padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
+  #help[hidden] { display: none; }
+  #help .box { max-width: 700px; margin: 0 auto; padding-top: 40px; line-height: 1.7; } #help h2 { font-size: 20px; margin: 22px 0 6px; } #help h3 { font-size: 16px; margin: 16px 0 2px; } #help p, #help ol { margin: 0; } #help ol { padding-left: 1.3em; }
   #bk { position: fixed; inset: 0; z-index: 35; background: rgba(20,22,27,.55); display: grid; place-items: center; padding: 20px; }
   #bk[hidden] { display: none; }
   #bk .box { background: var(--bg); border-radius: 16px; padding: 22px; max-width: 520px; display: grid; gap: 12px; line-height: 1.7; } #bk h2 { font-size: 19px; margin: 0; } #bk p { margin: 0; }
@@ -136,7 +139,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v62</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v64</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><b id="bar" style="display:none">–</b><span id="pg" style="display:inline-block;width:5ch;text-align:right;font-variant-numeric:tabular-nums">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;width:9.5ch;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"></span></div>
 </header>
@@ -184,11 +187,10 @@
       <button type="button" id="learnbtn" disabled>通して弾いて覚える（上級）</button>
       <button type="button" id="learnfilebtn">録音ファイルから覚える（上級）</button><input type="file" id="learnfile" accept="audio/*" hidden>
       <button type="button" id="learnreset">覚えたテンポを消す</button>
-      <small>楽譜を指で2回タップすると、そこから弾き始めます（弾いている途中でも、その場所に合わせ直します）。⏮ ボタンで、最初から弾くように戻せます。</small>
-      <small>自動でめくれないときは、楽譜を指で左へスワイプすると次のページ、右へスワイプすると前のページへ戻ります。ペダルの信号（→ / ← / PageDown / PageUp）でも手動でめくれます。</small>
       <div id="log"></div>
     </div>
   </details>
+  <button type="button" id="helpbtn" class="ib" aria-label="Help" title="Help"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.2 9.3a2.9 2.9 0 0 1 5.6 1c0 1.9-2.8 2.4-2.8 4.2"/><circle cx="12" cy="17.6" r=".6" fill="currentColor"/></svg></button>
 </footer>
 
 <div id="lib" hidden>
@@ -198,6 +200,35 @@
     <div id="liblist"></div>
     <div class="wrow" style="display:flex;gap:10px;flex-wrap:wrap"><button type="button" id="newbtn">＋ 新しい曲を作る</button><button type="button" id="openbtn">ファイルから開く（.json）</button></div>
     <small>曲は、この iPad の中に保存されます。どこにも送信されません。↑ のボタンで曲をファイルに書き出し、↻ のボタンで、写真はそのままで、めくる場所だけをやり直し、別の場所（ホーム画面のアプリなど）で「ファイルから開く」と取り込めます。</small>
+  </div>
+</div>
+<div id="help" hidden>
+  <button type="button" class="closebtn" id="helpclose" aria-label="Close" style="position:fixed;top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));z-index:45">×</button>
+  <div class="box">
+    <h2>使い方</h2>
+    <h3>基本</h3>
+    <ol>
+      <li>楽譜を開いて、「弾き始める」を押します。マイクの許可が出たら「許可」を押します。</li>
+      <li>ピアノを弾くと、あなたの演奏を聞いて、ページを自動でめくります。</li>
+      <li>終わったら「止める」を押します。</li>
+    </ol>
+    <h3>途中から弾き始める</h3>
+    <p>楽譜を指で2回タップすると、緑の旗が立ちます。そこから弾き始められます。旗の ✕ を押すと、旗を消せます。<br><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="vertical-align:-4px"><path d="M5 4h2.6v16H5zM10 4.5l10 7.5-10 7.5z"/></svg> のボタンを押すと、最初から弾くように戻ります。</p>
+    <h3>自動でめくれないとき</h3>
+    <p>楽譜を指で左へスワイプすると次のページ、右へスワイプすると前のページへ戻ります。ペダルの信号（→ / ← / PageDown / PageUp）でも、手動でめくれます。</p>
+    <h3>録音で試す</h3>
+    <p>弾かなくても、録音や動画を流して試せます。動画を選ぶとプレビュー画面が出ます。右上の青い ✓ を押してください（下の ▶ は再生ボタンです）。</p>
+    <h3>書き込み</h3>
+    <p>左上の鉛筆ボタンで書き込みができます。左の縦の列の、上から順に、色、太さと濃さ、消しゴム、修正テープ（紙の色で上から隠す）、一つ戻す、このページの書き込みを全部消す、です。</p>
+    <h2>よくある質問</h2>
+    <h3>Safari で書き込んだ曲が、ホーム画面のアプリに出てきません。</h3>
+    <p>Safari とホーム画面のアプリは、保存場所が別です。曲も書き込みも共有されません。最初から、ホーム画面のアイコンから開いて使ってください。</p>
+    <h3>アプリを新しくするには？</h3>
+    <p>ホーム画面のアプリを、いったん完全に終了して、開き直してください。ホーム画面のアイコンを削除すると、曲のデータが消えるので、絶対にしないでください。</p>
+    <h3>曲のバックアップは？</h3>
+    <p>曲の一覧（本のマーク）で、曲の ↑ ボタンを押すと、曲をファイルに書き出せます。あとで「ファイルから開く」で元に戻せます。</p>
+    <h3>めくるのが遅い、めくられない。</h3>
+    <p>設定（歯車のマーク）の「めくる位置」を変えると、めくる早さを調整できます。曲の一覧で ↻ を押すと、写真はそのままで、めくる場所だけをやり直せます。</p>
   </div>
 </div>
 <div id="vhint" hidden style="position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center"><div style="background:#fff;color:#111;border-radius:16px;padding:22px 24px;max-width:420px;margin:16px;text-align:center;font-size:17px;line-height:1.6">動画を選ぶと、プレビュー画面が出ます。<br><b>右上の青い ✓ を押してください。</b><br><span style="color:#666;font-size:14px">（下の▶︎は再生ボタンです。押すと音が流れるだけで、選んだことになりません）</span><br><button id="vhintok" type="button" style="margin-top:14px;font-size:18px;padding:10px 36px;border-radius:12px;border:0;background:#2563eb;color:#fff">OK</button></div></div>
@@ -347,7 +378,7 @@
   };
 
   /* ------------------------------------------------------------ silence gate */
-  function SilenceGate(calib) { this.calib = calib || 8; this.n = 0; this.vals = []; this.floor = null; this.peak = 0; }
+  function SilenceGate(calib, floor0) { this.calib = calib || 8; this.n = 0; this.vals = []; this.floor = floor0 > 0 ? floor0 : null; this.peak = 0; this.low = 0; this.lowSum = 0; }
   SilenceGate.prototype.silent = function (rms) {
     this.n++;
     if (this.floor === null) {
@@ -356,6 +387,8 @@
       return true;
     }
     this.peak = Math.max(this.peak * 0.9995, rms);
+    // if playing began at once, the first frames were not room noise and the floor is far too high: when the level stays under half of it for ~0.5 s (a rest, a decay), that is the real noise level
+    if (rms < 0.6 * this.floor) { this.low++; this.lowSum += rms; if (this.low >= 20) { this.floor = Math.max(this.lowSum / this.low, 1e-5); this.low = 0; this.lowSum = 0; } } else { this.low = 0; this.lowSum = 0; }
     return rms < Math.max(2 * this.floor, 0.04 * this.peak);
   };
 
@@ -598,7 +631,7 @@
     o = o || {};
     this.order = order; this.frac = o.frac === undefined ? 0.55 : o.frac; this.leadS = o.leadS === undefined ? 0.10 : o.leadS;
     this.confThr = 0.5; this.matchThr = 0.5; this.stableS = 1.2; this.dt = REF_HOP / REF_SR;
-    this.previewBars = o.previewBars === undefined ? 2 : o.previewBars; this.previewed = -1; this.previews = [];
+    this.previewBars = o.previewBars === undefined ? 2 : o.previewBars; this.previewS = o.previewS === undefined ? 6 : o.previewS; this.previewed = -1; this.previews = [];
     this.bad = 0; this.graceS = 1.5; this.hist = []; this.histN = Math.max(1, Math.floor(1 / this.dt));
     this.runs = []; var self = this;
     order.forEach(function (lab, i) { var p = barPage[lab]; var l = self.runs[self.runs.length - 1]; if (l && l[2] === p) l[1] = i; else self.runs.push([i, i, p]); });
@@ -623,7 +656,7 @@
     var n = this.order.length, cur = this.runOf[Math.min(Math.max(Math.floor(pos), 0), n - 1)];
     if (cur === this.disp && this.disp < this.runs.length - 1) {
       var last = this.runs[this.disp][1];
-      if (this.previewBars > 0 && this.previewed !== this.disp && last + 1 - this.previewBars <= pos && pos < last + 1) {
+      if (this.previewBars > 0 && this.previewed !== this.disp && last + 1 - this.previewBars <= pos && pos < last + 1 && (last + this.frac - pos) / Math.max(bps, 0.01) <= this.previewS) {
         this.previewed = this.disp; this.previews.push({ t: t, from: this.disp, to: this.disp + 1, pos: pos, firstBar: this.runs[this.disp + 1][0] });
         return 'preview';
       }
@@ -639,7 +672,7 @@
   function AutoPager(pkg, opts) {
     opts = opts || {};
     this.sr = opts.sampleRate; this.ref = new Reference(pkg); if (opts.barSec) this.ref = this.ref.warp(opts.barSec);
-    this.ex = new ChromaExtractor(this.sr); this.gate = new SilenceGate();
+    this.ex = new ChromaExtractor(this.sr); this.gate = new SilenceGate(8, opts.noiseFloor);
     var sp = opts.startPos !== undefined ? opts.startPos : (opts.startBar || 0), sf = sp > 0 ? this.ref.frameOfBar(sp) : undefined;       // sp may be fractional (a tapped place in the score)
     this.al = opts.singleTempo ? new Aligner(this.ref, { startBar: sp, startFrame: sf }) : new MultiAligner(this.ref, Object.assign({ startBar: sp, startFrame: sf }, opts.alignerOpts || {}));
     this.turner = new PageTurner(pkg.order, pkg.bar_page, { frac: opts.frac, leadS: opts.leadS, previewBars: opts.previewBars });
@@ -981,7 +1014,7 @@
   var workletCode = 'class P extends AudioWorkletProcessor{process(i){var c=i[0]&&i[0][0];if(c)this.port.postMessage(c.slice(0));return true;}}registerProcessor("tap",P);';
   function makePager() {
     var sb = startPos.pos;
-    pager = new AutoPage.AutoPager(pkg, { sampleRate: ctx.sampleRate, startPos: sb, frac: +$('frac').value / 100, previewBars: +$('prevbars').value, barSec: tempo ? tempo.barSec : null, singleTempo: $('tempomode').value !== 'wide', onEvent: onEvent });
+    pager = new AutoPage.AutoPager(pkg, { noiseFloor: (function () { try { return +localStorage.getItem('nf') || undefined; } catch (e) { return undefined; } })(), sampleRate: ctx.sampleRate, startPos: sb, frac: +$('frac').value / 100, previewBars: +$('prevbars').value, barSec: tempo ? tempo.barSec : null, singleTempo: $('tempomode').value !== 'wide', onEvent: onEvent });
     showPage(startPos.page); hidePreview();
   }
   var starting = false;
@@ -989,8 +1022,8 @@
     if (running || starting) return; starting = true;
     var AC = window.AudioContext || window.webkitAudioContext; ctx = new AC();
     var myCtx = ctx, stopped = false, diag = { calls: 0, peak: 0, via: 'worklet' };
-    $('go').textContent = '準備中…'; showErr('マイクを準備しています…（許可の確認が出たら「許可」を押してください）');
-    var fail = function (e) { starting = false; if (stopped) return; stopped = true; try { myCtx.close(); } catch (x) {} if (ctx === myCtx) ctx = null; running = false; $('go').textContent = '弾き始める'; $('go').classList.remove('on');
+    $('go').textContent = '準備中…'; var prepT = setTimeout(function () { if (starting) showErr('マイクを準備しています…（許可の確認が出たら「許可」を押してください）'); }, 1500);
+    var fail = function (e) { clearTimeout(prepT); starting = false; if (stopped) return; stopped = true; try { myCtx.close(); } catch (x) {} if (ctx === myCtx) ctx = null; running = false; $('go').textContent = '弾き始める'; $('go').classList.remove('on');
       showErr('マイクを使えません（' + (e && (e.name || '') + ' ' + (e && e.message || e || '')).trim() + '）。Safari の「ぁあ」→「Webサイトの設定」でマイクを許可し、ページを再読み込みしてからもう一度押してください。'); };
     var resumed = myCtx.resume ? myCtx.resume().catch(function () {}) : Promise.resolve();
     navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } }).then(function (s) {
@@ -1005,10 +1038,10 @@
         wl = Promise.race([myCtx.audioWorklet.addModule(url).then(function () { node = new AudioWorkletNode(myCtx, 'tap'); node.port.onmessage = function (e) { feed(e.data); }; src.connect(node); node.connect(sink); }), new Promise(function (_, ng) { setTimeout(function () { ng(new Error('worklet timeout')); }, 4000); })]).catch(function () { useSP(); });
       } else { useSP(); wl = Promise.resolve(); }
       return Promise.all([wl, resumed]).then(function () {
-        starting = false; running = true; $('go').textContent = '止める'; $('go').classList.add('on'); $('msg').hidden = true; log('聞いています (' + myCtx.sampleRate + ' Hz)');
+        clearTimeout(prepT); starting = false; running = true; $('go').textContent = '止める'; $('go').classList.add('on'); $('msg').hidden = true; log('聞いています (' + myCtx.sampleRate + ' Hz)');
         if (myCtx.state !== 'running') {            // Safari pauses audio while the permission question is shown: one tap on the screen starts it again
-          showErr('画面をタップすると、\n聞き取りが始まります');
-          $('msg').onclick = function () { $('msg').hidden = true; $('msg').onclick = null; myCtx.resume().catch(function () {}); };
+          var kick = function () { if (myCtx.state === 'running') { clearInterval(kt); document.removeEventListener('pointerdown', kick, true); return; } myCtx.resume().catch(function () {}); };
+          var kt = setInterval(kick, 400); document.addEventListener('pointerdown', kick, true);      // no message, no forced tap: keep trying quietly, and any touch on the screen also restarts it
         }
         myCtx.onstatechange = function () { if (myCtx.state !== 'running' && running && ctx === myCtx) { myCtx.resume().catch(function () {}); } };
         if (navigator.wakeLock) navigator.wakeLock.request('screen').then(function (l) { wake = l; }).catch(function () {});
@@ -1023,6 +1056,7 @@
     }).catch(fail);
   }
   function stop() {
+    try { if (stream && pager && pager.gate && pager.gate.floor && pager.gate.peak > 0 && pager.gate.floor < 0.15 * pager.gate.peak) localStorage.setItem('nf', String(pager.gate.floor)); } catch (e) {}      // remember the room's noise level: next time, playing can start at once
     running = false; testMode = false; syncTest(); if (feeder) { clearInterval(feeder); feeder = null; }
     try { if (mediaEl) { mediaEl.pause(); mediaEl.remove(); mediaEl = null; } if (node) node.disconnect(); if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); if (ctx) ctx.close(); if (wake) wake.release(); } catch (e) {}
     node = stream = ctx = wake = null; $('go').textContent = '弾き始める'; $('go').classList.remove('on'); log('止めました');
@@ -1460,7 +1494,7 @@
     startPos = { page: shownPage, pos: sp, mark: { page: shownPage, x: x, y: y } }; drawPage(null, 0); toast('▶ ここから弾きます');
     if (running && ctx) makePager();                                // already listening: line the follower up with the new place
   }
-  $('startreset').onclick = function () { startPos = { page: pkg ? pkg.bar_page[pkg.order[0]] : 1, pos: 0, mark: null }; if (pkg) showPage(startPos.page); hidePreview(); toast('⏮'); if (running && ctx) makePager(); };
+  $('startreset').onclick = function () { startPos = { page: pkg ? pkg.bar_page[pkg.order[0]] : 1, pos: 0, mark: null }; if (pkg) showPage(startPos.page); hidePreview(); if (running && ctx) makePager(); };
 
   /* ---------- handwriting on the score (Apple Pencil) ---------- */
   var ink = { on: false, color: '#d62828', hl: false, eraser: false, strokes: {}, cur: null, saveT: null, wPen: 14, aPen: 100, wHl: 24, aHl: 45, wCov: 30, aCov: 100, cover: false };   // widths in tenths of a screen pixel, opacity in %
@@ -1646,6 +1680,8 @@
   }
   $('libbtn').onclick = function () { libArm = null; libRender(); $('lib').hidden = false; };
   $('libclose').onclick = function () { $('lib').hidden = true; };
+  $('helpbtn').onclick = function () { $('help').hidden = false; $('help').scrollTop = 0; };
+  $('helpclose').onclick = function () { $('help').hidden = true; };
   function loadText(text, save) { try { boot(JSON.parse(text), save); } catch (e) { $('msg').hidden = false; $('msg').textContent = 'この楽譜データは読めません: ' + e; } }
   $('openbtn').onclick = function () { $('score').click(); };
   $('score').onchange = function () { var f = this.files[0]; this.value = ''; if (f) f.text().then(function (t) { $('lib').hidden = true; loadText(t, true); }); };
