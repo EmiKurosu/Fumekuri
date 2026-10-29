@@ -184,7 +184,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v99</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v100</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><b id="bar" style="display:none">–</b><span id="pg" style="display:inline-block;width:5ch;text-align:right;font-variant-numeric:tabular-nums">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;width:9.5ch;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"></span></div>
 </header>
@@ -701,7 +701,7 @@
     var T = ref.T, K, i, k, s;
     this.ref = ref; this.T = T; this.beta = o.beta || 10; this.epsObs = o.epsObs === undefined ? 0.5 : o.epsObs; this.slip = o.slip === undefined ? 0.003 : o.slip; this.stay = o.stay || 0.95;
     this.rhoF = Math.exp(-1 / ((o.lamFwd || 0.25) * ref.barFrames)); this.rhoB = Math.exp(-1 / ((o.lamBack || 0.5) * ref.barFrames));
-    this.W = Math.floor(0.75 * ref.barFrames);
+    this.W = Math.floor((o.winBars || 0.75) * ref.barFrames);      // the window in which the confidence is counted (wider when slow playing makes the place less exact)
     var rates = o.rates || []; if (!rates.length) for (i = 0; i < 11; i++) rates.push(0.55 * Math.pow(1.35, i));
     this.rates = rates; K = this.K = rates.length; this.kern = [];
     var psd = o.priorSd === undefined ? 0.6 : o.priorSd; this.pull = o.pull === undefined ? 0.01 : o.pull;      // soft preference for 'about the written tempo'
@@ -1308,23 +1308,22 @@
     // 1. the next page, uncovered in the corner, softly shaded towards the fold
     under(); g.fillStyle = '#fff'; g.fill();
     g.save(); under(); g.clip(); g.drawImage(paSrc(gm.nreg.img, pl.np), gm.nreg.x0, gm.nreg.y0, gm.nw, gm.nh, gm.x0, gm.y0, gm.nw * gm.ns, gm.nh * gm.ns);
-    var fm = fold(0.5), sw = Math.min(0.13 * L, 110 * d), sh = g.createLinearGradient(fm[0], fm[1], fm[0] - nx * sw, fm[1] - ny * sw);
-    sh.addColorStop(0, 'rgba(0,0,0,.34)'); sh.addColorStop(0.3, 'rgba(0,0,0,.16)'); sh.addColorStop(0.65, 'rgba(0,0,0,.05)'); sh.addColorStop(1, 'rgba(0,0,0,0)');
+    var fm = fold(0.5), sw = Math.min(0.17 * L, 230 * d), sh = g.createLinearGradient(fm[0], fm[1], fm[0] - nx * sw, fm[1] - ny * sw);
+    sh.addColorStop(0, 'rgba(0,0,0,.6)'); sh.addColorStop(0.12, 'rgba(0,0,0,.44)'); sh.addColorStop(0.32, 'rgba(0,0,0,.22)'); sh.addColorStop(0.62, 'rgba(0,0,0,.07)'); sh.addColorStop(1, 'rgba(0,0,0,0)');
     g.strokeStyle = sh; g.lineWidth = sw * 2; g.lineCap = 'butt'; g.beginPath(); g.moveTo(px, py); g.quadraticCurveTo(cx, cy, qx, qy); g.stroke(); g.restore();
     // 2. the curled-over paper: pointed at the top, rounded and widest at the left end
-    var Wf = 0.3 * L, T = fold(0.97), E = [qx + ux * 0.22 * L + nx * Wf, qy + uy * 0.22 * L + ny * Wf], Lb = [qx + ux * 0.05 * L + nx * 0.037 * L, qy + uy * 0.05 * L + ny * 0.037 * L], S0 = [qx - ux * 0.03 * L + nx * 0.05 * L, qy - uy * 0.03 * L + ny * 0.05 * L];
+    var Wf = 0.3 * L, T = fold(0.97), E = [qx + ux * 0.22 * L + nx * Wf, qy + uy * 0.22 * L + ny * Wf], Lb = [qx + ux * 0.05 * L + nx * 0.037 * L, qy + uy * 0.05 * L + ny * 0.037 * L], S0 = [qx - ux * 0.03 * L, qy - uy * 0.03 * L];
     function flap() {                                          // a triangle: the fold, the hollow curled edge, a hollow bottom edge that rises to a small rolled lobe at the left; the lower corner is pointed
       g.beginPath(); g.moveTo(S0[0], S0[1]); g.lineTo(qx, qy); for (var k = 1; k <= 30; k++) { var f = fold(0.97 * k / 30); g.lineTo(f[0], f[1]); }
       g.quadraticCurveTo((T[0] + E[0]) / 2 - nx * 0.14 * L, (T[1] + E[1]) / 2 - ny * 0.14 * L, E[0], E[1]);
       g.quadraticCurveTo((E[0] + Lb[0]) / 2 - nx * 0.09 * L, (E[1] + Lb[1]) / 2 - ny * 0.09 * L, Lb[0], Lb[1]);
       g.quadraticCurveTo(Lb[0] - ux * 0.04 * L + nx * 0.02 * L, Lb[1] - uy * 0.04 * L + ny * 0.02 * L, S0[0], S0[1]); g.closePath();
     }
-    flap(); g.shadowColor = 'rgba(0,0,0,.14)'; g.shadowBlur = 12 * d; g.shadowOffsetX = nx * 3 * d; g.shadowOffsetY = ny * 3 * d + 2 * d; g.fillStyle = '#d8d8d6'; g.fill(); g.shadowColor = 'transparent';
+    flap(); g.shadowColor = 'rgba(0,0,0,.14)'; g.shadowBlur = 12 * d; g.shadowOffsetX = nx * 3 * d; g.shadowOffsetY = ny * 3 * d + 2 * d; g.fillStyle = '#e4e4e4'; g.fill(); g.shadowColor = 'transparent';
     var f0 = fold(0.4), fg = g.createLinearGradient(f0[0], f0[1], f0[0] + nx * Wf, f0[1] + ny * Wf);                         // across the curl: dark at the fold, bright, dark, bright at the edge (a rolled sheet)
-    fg.addColorStop(0, '#8c8c8b'); fg.addColorStop(0.3, '#b4b4b2'); fg.addColorStop(0.65, '#d9d9d6'); fg.addColorStop(1, '#eeeeeb');           // matt paper: dark grey at the fold, getting lighter towards the free edge (no gloss)
+    fg.addColorStop(0, '#d4d4d4'); fg.addColorStop(0.09, '#c3c3c3'); fg.addColorStop(0.22, '#dadada'); fg.addColorStop(0.5, '#ececec'); fg.addColorStop(0.8, '#f6f6f6'); fg.addColorStop(1, '#fbfbfb');           // matt paper: dark grey at the fold, getting lighter towards the free edge (no gloss)
     flap(); g.fillStyle = fg; g.fill();
-    g.save(); flap(); g.clip(); var eg = g.createLinearGradient(qx - ux * 0.03 * L, qy - uy * 0.03 * L, qx + ux * 0.3 * L, qy + uy * 0.3 * L);   // the left end of the roll is dark too
-    eg.addColorStop(0, 'rgba(40,40,40,.5)'); eg.addColorStop(0.45, 'rgba(40,40,40,.18)'); eg.addColorStop(1, 'rgba(40,40,40,0)'); g.fillStyle = eg; g.fillRect(gm.x0 - 20, gm.y0 - 20, gm.Wd + 40, gm.Hd + 40); g.restore();
+
     g.restore();
   }
   function setPeel(o) {
@@ -1369,7 +1368,7 @@
   var workletCode = 'class P extends AudioWorkletProcessor{process(i){var c=i[0]&&i[0][0];if(c)this.port.postMessage(c.slice(0));return true;}}registerProcessor("tap",P);';
   function makePager() {
     var sb = startPos.pos;
-    pager = new AutoPage.AutoPager(pkg, { noiseFloor: (function () { try { return +localStorage.getItem('nf') || undefined; } catch (e) { return undefined; } })(), sampleRate: ctx.sampleRate, startPos: sb, frac: +$('frac').value / 100, previewBars: +$('prevbars').value, barSec: tempo ? tempo.barSec : null, singleTempo: !slowOn && $('tempomode').value !== 'wide', alignerOpts: slowOn ? { rates: [0.28, 0.378, 0.51, 0.69, 0.93, 1.26, 1.7] } : undefined, onEvent: onEvent });
+    pager = new AutoPage.AutoPager(pkg, { noiseFloor: (function () { try { return +localStorage.getItem('nf') || undefined; } catch (e) { return undefined; } })(), sampleRate: ctx.sampleRate, startPos: sb, frac: +$('frac').value / 100, previewBars: +$('prevbars').value, barSec: tempo ? tempo.barSec : null, singleTempo: !slowOn && $('tempomode').value !== 'wide', alignerOpts: slowOn ? { rates: [0.28, 0.378, 0.51, 0.69, 0.93, 1.26, 1.7], winBars: 2.5 } : undefined, onEvent: onEvent });
     showPage(startPos.page); hidePreview(); startZonePreview();
   }
   var slowOn = false; try { slowOn = localStorage.getItem('slow') === '1'; } catch (e) {}      // "slowly" button: several slow tempi are followed at once (a little more work for the iPad, so only when asked)
@@ -1429,6 +1428,7 @@
     var hadOff = pkgSrc && Object.keys(repOff).length; running = false; testMode = false; syncTest(); if (hadOff) { repOff = {}; repTapT = {}; repApply(); } if (feeder) { clearInterval(feeder); feeder = null; }
     try { if (mediaEl) { mediaEl.pause(); mediaEl.remove(); mediaEl = null; } if (node) node.disconnect(); if (stream) micIdle(stream); if (ctx) ctx.close(); if (wake) wake.release(); } catch (e) {}
     node = stream = ctx = wake = null; $('go').textContent = _t('弾き始める'); $('go').classList.remove('on'); $('herebtn').hidden = true; hereArm = false; $('herebtn').classList.remove('sel'); log(_t('止めました'));
+    if (pkg) { hidePreview(); drawPage(null, 0); startZonePreview(); }          // stopped: a half-turned corner goes back (so the place where playing starts is visible again)
   }
   var mediaEl = null, testMode = false;
   function syncTest() { $('tpause').hidden = $('tplay').hidden = !testMode; }
