@@ -18,6 +18,8 @@
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg);
     font: 16px/1.4 -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", system-ui, sans-serif; overscroll-behavior: none; }
+  html { overflow: hidden; }
+  body { position: fixed; inset: 0; width: 100%; overflow: hidden; box-sizing: border-box; }      /* the page itself never scrolls: a touch or the pencil must not push the whole screen down */
   body { display: flex; flex-direction: column; padding: env(safe-area-inset-top) max(12px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(12px, env(safe-area-inset-left)); gap: 10px; }
   header { display: flex; align-items: center; gap: 14px; padding-top: 10px; min-height: 52px; }
   header h1 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: .02em; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -28,6 +30,7 @@
   .meter i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .08s linear; }
   .meter.lost i { background: var(--warn); }
   main { touch-action: pan-y; position: relative; flex: 1; min-height: 0; background: #fff; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  #inkov { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; z-index: 1; }
   #page { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   #msg[hidden] { display: none; }
   #msg.alert { display: flex; flex-direction: column; justify-content: center; align-items: center; background: #1b1d23; color: #fff; font-size: 24px; font-weight: 700; line-height: 1.7; white-space: pre-line; padding: 36px; z-index: 6; cursor: pointer; }
@@ -181,12 +184,12 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v96</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v97</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><b id="bar" style="display:none">–</b><span id="pg" style="display:inline-block;width:5ch;text-align:right;font-variant-numeric:tabular-nums">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;width:9.5ch;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"></span></div>
 </header>
 <main>
-  <canvas id="page"></canvas><div id="geoov" hidden></div>
+  <canvas id="page"></canvas><canvas id="inkov"></canvas><div id="geoov" hidden></div>
   <div id="inkbar">
     <button type="button" id="inkt" aria-label="書き込みのオン・オフ"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/><path d="M15 5l4 4"/></svg></button>
     <div id="inkopts" hidden>
@@ -1203,6 +1206,7 @@
     g.moveTo(f[0], f[3] - L); g.lineTo(f[0], f[3]); g.lineTo(f[0] + L, f[3]); g.moveTo(f[2] - L, f[3]); g.lineTo(f[2], f[3]); g.lineTo(f[2], f[3] - L); g.stroke();
     g.restore();
   }
+  var baseCv = null, baseKey = '';
   function drawPage(playBar, playFrac) {
     var c = $('page'), g = c.getContext('2d'), d = fit(c);
     g.fillStyle = '#ffffff'; g.fillRect(0, 0, c.width, c.height);
@@ -1221,13 +1225,18 @@
     var ox = c.width / 2 - (cxI - reg.x0) * s, oy = c.height / 2 - (cyI - reg.y0) * s;
     view = { s: s, s0: s0, ox: ox, oy: oy, reg: reg, cs: Math.cos(th), sn: Math.sin(th), pcx: pcx, pcy: pcy, ka: ka, kb: kb };
     g.imageSmoothingQuality = 'high';
-    if (gp) {
-      g.save(); g.beginPath(); g.rect(ox, oy, w * s, h * s); g.clip();
-      if (ka || kb) { g.setTransform(1, 0, 0, 1, 0, 0); meshDraw(g, paSrc(reg0.img, shownPage), reg0, view, geoDial ? 8 : 14); }
-      else {
-      g.translate(ox - reg.x0 * s, oy - reg.y0 * s); g.scale(s, s); g.translate(pcx, pcy); g.rotate(th); g.translate(-pcx, -pcy);
-      g.drawImage(paSrc(reg0.img, shownPage), reg0.x0, reg0.y0, reg0.x1 - reg0.x0, reg0.y1 - reg0.y0, reg0.x0, reg0.y0, reg0.x1 - reg0.x0, reg0.y1 - reg0.y0); }
-      g.restore();
+    if (gp) {                                    // (rotated / tilted pages are costly to draw: the finished picture is kept and reused while only the writing, flags or the curl change)
+      var pa0 = paOf(shownPage), bk = [shownPage, c.width, c.height, s.toFixed(4), ox.toFixed(1), oy.toFixed(1), JSON.stringify(gp), pa0 ? [pa0.b, pa0.c, pa0.t, pa0.A ? 1 : 0].join(',') : '', ed ? 1 : 0, geoDial ? 1 : 0, reg0.img].join('|');
+      if (!baseCv || baseKey !== bk) {
+        baseCv = baseCv || document.createElement('canvas'); baseCv.width = c.width; baseCv.height = c.height; var bg = baseCv.getContext('2d'); bg.imageSmoothingQuality = 'high';
+        bg.save(); bg.beginPath(); bg.rect(ox, oy, w * s, h * s); bg.clip();
+        if (ka || kb) { bg.setTransform(1, 0, 0, 1, 0, 0); meshDraw(bg, paSrc(reg0.img, shownPage), reg0, view, geoDial ? 8 : 14); }
+        else {
+          bg.translate(ox - reg.x0 * s, oy - reg.y0 * s); bg.scale(s, s); bg.translate(pcx, pcy); bg.rotate(th); bg.translate(-pcx, -pcy);
+          bg.drawImage(paSrc(reg0.img, shownPage), reg0.x0, reg0.y0, reg0.x1 - reg0.x0, reg0.y1 - reg0.y0, reg0.x0, reg0.y0, reg0.x1 - reg0.x0, reg0.y1 - reg0.y0); }
+        bg.restore(); baseKey = bk;
+      }
+      g.drawImage(baseCv, 0, 0);
     } else g.drawImage(paSrc(reg.img, shownPage), reg.x0, reg.y0, w, h, ox, oy, w * s, h * s);
     var b = playBar != null ? pkg.rects[playBar] : null;
     if (gp) { g.save(); g.beginPath(); g.rect(ox, oy, w * s, h * s); g.clip(); drawInk(g, view); g.restore(); } else drawInk(g, view);
@@ -1296,11 +1305,12 @@
     sh.addColorStop(0, 'rgba(0,0,0,.36)'); sh.addColorStop(0.25, 'rgba(0,0,0,.2)'); sh.addColorStop(0.6, 'rgba(0,0,0,.06)'); sh.addColorStop(1, 'rgba(0,0,0,0)');
     g.strokeStyle = sh; g.lineWidth = sw * 2; g.lineCap = 'butt'; g.beginPath(); g.moveTo(px, py); g.quadraticCurveTo(cx, cy, qx, qy); g.stroke(); g.restore();
     // 2. the curled-over paper: pointed at the top, rounded and widest at the left end
-    var Wf = 0.12 * L, T = fold(0.8), E = [qx + ux * 0.2 * L + nx * Wf, qy + uy * 0.2 * L + ny * Wf];
-    function flap() {
-      g.beginPath(); g.moveTo(qx, qy); for (var k = 1; k <= 24; k++) { var f = fold(0.8 * k / 24); g.lineTo(f[0], f[1]); }
-      g.quadraticCurveTo((T[0] + E[0]) / 2 - nx * 0.05 * L, (T[1] + E[1]) / 2 - ny * 0.05 * L, E[0], E[1]);
-      g.bezierCurveTo(E[0] - ux * 0.13 * L + nx * 0.02 * L, E[1] - uy * 0.13 * L + ny * 0.02 * L, qx + nx * Wf * 0.95 - ux * 0.03 * L, qy + ny * Wf * 0.95 - uy * 0.03 * L, qx, qy); g.closePath();
+    var Wf = 0.17 * L, T = fold(0.8), E = [qx + ux * 0.22 * L + nx * Wf, qy + uy * 0.22 * L + ny * Wf];
+    function flap() {                                          // a triangle: the fold, the curled free edge (hollow) and a short bottom edge; the lower corner is pointed
+      var Q2 = [qx - ux * 0.06 * L + nx * 0.015 * L, qy - uy * 0.06 * L + ny * 0.015 * L];
+      g.beginPath(); g.moveTo(qx - ux * 0.06 * L, qy - uy * 0.06 * L); g.lineTo(qx, qy); for (var k = 1; k <= 24; k++) { var f = fold(0.8 * k / 24); g.lineTo(f[0], f[1]); }
+      g.quadraticCurveTo((T[0] + E[0]) / 2 - nx * 0.06 * L, (T[1] + E[1]) / 2 - ny * 0.06 * L, E[0], E[1]);
+      g.quadraticCurveTo((E[0] + Q2[0]) / 2 + nx * 0.03 * L - ux * 0.02 * L, (E[1] + Q2[1]) / 2 + ny * 0.03 * L - uy * 0.02 * L, Q2[0], Q2[1]); g.closePath();
     }
     flap(); g.shadowColor = 'rgba(0,0,0,.22)'; g.shadowBlur = 16 * d; g.shadowOffsetX = nx * 4 * d; g.shadowOffsetY = ny * 4 * d + 2 * d; g.fillStyle = '#f4f4f4'; g.fill(); g.shadowColor = 'transparent';
     var f0 = fold(0.35), fg = g.createLinearGradient(f0[0], f0[1], f0[0] + nx * Wf * 1.15, f0[1] + ny * Wf * 1.15);                      // the back of the paper: light grey at the fold, a little darker in the middle, white at the edge
@@ -1549,11 +1559,31 @@
   }
   ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (n) { document.addEventListener(n, function (e) { e.preventDefault(); }, { passive: false }); });      // iOS: no browser zoom of the whole screen (the score has its own pinch zoom)
   /* swipe on the score: to the left = next page, to the right = previous page */
+  (function () {                                    // if the whole screen ever gets shifted or zoomed (finger, pencil, rotating the iPad), put it straight back, so that taps land where the buttons are drawn
+    function fix() {
+      try { if (window.scrollX || window.scrollY) window.scrollTo(0, 0); var vv = window.visualViewport; if (vv && (vv.scale > 1.02 || Math.abs(vv.offsetTop) > 1 || Math.abs(vv.offsetLeft) > 1)) { var m = document.querySelector('meta[name=viewport]'), c = m.content; m.content = 'width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover'; setTimeout(function () { m.content = c; window.scrollTo(0, 0); }, 60); } } catch (e) {}
+    }
+    window.addEventListener('scroll', fix, { passive: true }); if (window.visualViewport) { visualViewport.addEventListener('scroll', fix); visualViewport.addEventListener('resize', fix); }
+  })();
+  (function () {                                    // the app is exactly as tall as the visible screen (the home-screen app on iPad sometimes keeps an old, taller size after turning the iPad, waking it or changing the stand)
+    function fitH() {
+      try { var vv = window.visualViewport, H = Math.round(vv && vv.height ? vv.height : window.innerHeight); if (H > 200) { document.body.style.height = H + 'px'; document.body.style.bottom = 'auto'; } window.scrollTo(0, 0); if (typeof drawPage === 'function' && typeof shownPage !== 'undefined' && shownPage != null) drawPage(null, 0); } catch (e) {}
+    }
+    ['resize', 'orientationchange', 'pageshow', 'focus'].forEach(function (n) { window.addEventListener(n, function () { fitH(); setTimeout(fitH, 300); }); });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) { fitH(); setTimeout(fitH, 300); } });
+    if (window.visualViewport) visualViewport.addEventListener('resize', fitH);
+    fitH(); setInterval(function () { var vv = window.visualViewport, H = Math.round(vv && vv.height ? vv.height : window.innerHeight); if (H > 200 && Math.abs(document.body.getBoundingClientRect().height - H) > 2) fitH(); }, 1500);      // and a check every moment: if the app is not as tall as the screen, it is put right
+  })();
+  var drawRaf = 0; function drawSoon() { if (drawRaf) return; drawRaf = requestAnimationFrame(function () { drawRaf = 0; drawPage(null, 0); }); }      // at most one full redraw per frame
+  var penT = 0;                                      // the last moment the Apple Pencil touched the screen: a resting palm or finger at the same time must not zoom or turn the page
+  document.addEventListener('pointerdown', function (e) { if (e.pointerType === 'pen') penT = Date.now(); }, true); document.addEventListener('pointermove', function (e) { if (e.pointerType === 'pen') penT = Date.now(); }, true);
+  function penNear() { return Date.now() - penT < 1200; }
+  function hasStylus(e) { for (var i = 0; i < e.touches.length; i++) if (e.touches[i].touchType === 'stylus') return true; return false; }
   (function () {
     var m = document.querySelector('main'), sx = null, sy = null, st = 0;
-    m.addEventListener('touchstart', function (e) { if (e.touches.length !== 1 || e.touches[0].touchType === 'stylus') { sx = null; return; } sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); }, { passive: true });
+    m.addEventListener('touchstart', function (e) { if (e.touches.length !== 1 || e.touches[0].touchType === 'stylus' || penNear()) { sx = null; return; } sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); }, { passive: true });
     m.addEventListener('touchend', function (e) {
-      if (sx === null || pz) return; var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy; sx = null;
+      if (sx === null || pz || penNear()) { sx = null; return; } var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy; sx = null;
       if (Math.abs(dx) < 14 && Math.abs(dy) < 14 && Date.now() - st < 350 && view) {                       // a tap; two taps close together = "start here"
         var now = Date.now(), cp = cpt(t); lastTouchT = now;
         if (hereArm) { hereArm = false; $('herebtn').classList.remove('sel'); lastTap = null; var hp = vInv(view, cp[0], cp[1]); setStart(hp[0], hp[1]); return; }
@@ -1569,12 +1599,13 @@
     m.addEventListener('dblclick', function (e) { if (ink.on || !view) return; var cp0 = cpt(e); if (hitFlagX(cp0[0], cp0[1], cp0[2])) return; if (ink.on || !view) return; var cp = cpt(e), ip = vInv(view, cp[0], cp[1]); setStart(ip[0], ip[1]); });
     function cpt(t) { var c = $('page'), r = c.getBoundingClientRect(), d = c.width / r.width; return [(t.clientX - r.left) * d, (t.clientY - r.top) * d, d]; }
     m.addEventListener('touchstart', function (e) {
-      if (e.touches.length === 2 && view && shownPage != null && e.touches[0].touchType !== 'stylus') {
+      if (e.touches.length === 2 && view && shownPage != null && !hasStylus(e) && !penNear() && !ink.cur) {
         sx = null; var a = cpt(e.touches[0]), b = cpt(e.touches[1]), cx = (a[0] + b[0]) / 2, cy = (a[1] + b[1]) / 2, ad = adj[shownPage];
         pz = { d0: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, z0: ad ? ad.z : 1, px: (cx - view.ox) / view.s + view.reg.x0, py: (cy - view.oy) / view.s + view.reg.y0 };
       }
     }, { passive: true });
     m.addEventListener('touchmove', function (e) {
+      if (pz && (penNear() || hasStylus(e) || ink.cur)) { pz = null; return; }
       if (!pz || e.touches.length !== 2 || !view) return; var a = cpt(e.touches[0]), b = cpt(e.touches[1]), cx = (a[0] + b[0]) / 2, cy = (a[1] + b[1]) / 2;
       var z = Math.max(1, Math.min(5, pz.z0 * (Math.hypot(a[0] - b[0], a[1] - b[1]) / pz.d0))), s = view.s0 * z, c = $('page');
       adj[shownPage] = { z: z, cx: pz.px - (cx - c.width / 2) / s, cy: pz.py - (cy - c.height / 2) / s }; drawPage(null, 0);
@@ -2416,15 +2447,19 @@
       if (ink.eraser) { ink.cur = { erase: true }; eraseAt(pt); return; }
       var cov = ink.cover, w = (cov ? ink.wCov * 5 : ink.hl ? ink.wHl * 5 : ink.wPen) / 10 * d / view.s;
       ink.cur = { c: cov ? paperColorAt(pt[0], pt[1]) : ink.color, w: w, h: !cov && ink.hl ? 1 : 0, a: (cov ? ink.aCov : ink.hl ? ink.aHl : ink.aPen) / 100, p: [pt[0], pt[1]] };
-      (ink.strokes[shownPage] = ink.strokes[shownPage] || []).push(ink.cur); drawPage(null, 0);
+      (ink.strokes[shownPage] = ink.strokes[shownPage] || []).push(ink.cur); $('inkov').style.mixBlendMode = ink.cur.h ? 'multiply' : 'normal'; inkRedraw();
     });
     c.addEventListener('pointermove', function (e) {
       if (!ink.cur) return; e.preventDefault();
       var evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e]; if (!evs.length) evs = [e];
       for (var i = 0; i < evs.length; i++) { var pt = inkPoint(evs[i]); if (ink.cur.erase) eraseAt(pt); else ink.cur.p.push(Math.round(pt[0] * 10) / 10, Math.round(pt[1] * 10) / 10); }
-      if (!ink.cur.erase) drawPage(null, 0);
+      if (!ink.cur.erase) inkRedraw();
     });
-    function up() { if (!ink.cur) return; ink.cur = null; inkSave(); }
+    var inkRaf = 0, ov = $('inkov');
+    function inkRedraw() {                                                                  // while writing, only the stroke in progress is redrawn (on its own layer), once per frame: the page itself is not redrawn
+      if (inkRaf) return; inkRaf = requestAnimationFrame(function () { inkRaf = 0; if (!ink.cur || ink.cur.erase || !view) return; fit(ov); var og = ov.getContext('2d'); og.setTransform(1, 0, 0, 1, 0, 0); og.clearRect(0, 0, ov.width, ov.height); drawOne(og, ink.cur, view); });
+    }
+    function up() { if (!ink.cur) return; var was = ink.cur; ink.cur = null; if (inkRaf) { cancelAnimationFrame(inkRaf); inkRaf = 0; } inkSave(); if (!was.erase) { drawPage(null, 0); var og = ov.getContext('2d'); og.setTransform(1, 0, 0, 1, 0, 0); og.clearRect(0, 0, ov.width, ov.height); } }
     c.addEventListener('pointerup', up); c.addEventListener('pointercancel', up);
   })();
   function paperColorAt(x, y) {                  // the colour of the paper around a point: average of the brightest third of the pixels there
@@ -2440,7 +2475,7 @@
   function eraseAt(pt) {
     var list = ink.strokes[shownPage]; if (!list) return; var r = 16 * pt[2] / view.s, keep = list.filter(function (st) {
       for (var i = 0; i < st.p.length; i += 2) { var dx = st.p[i] - pt[0], dy = st.p[i + 1] - pt[1]; if (dx * dx + dy * dy < r * r) return false; } return true; });
-    if (keep.length !== list.length) { ink.strokes[shownPage] = keep; drawPage(null, 0); }
+    if (keep.length !== list.length) { ink.strokes[shownPage] = keep; drawSoon(); }
   }
   function inkUI() {
     $('inkopts').hidden = !ink.on; $('inkt').classList.toggle('sel', ink.on);
@@ -2484,7 +2519,7 @@
     var src = p; repOff = {}; repTapT = {}; p = Song.effective(src, repOff); pkgSrc = src; srcRefCache = null;
     pkg = p; pages = {}; shownPage = null; pager = null; $('title').textContent = p.title || _t('譜めくりくん');
     maxPage = Math.max.apply(null, Object.keys(p.bar_page).map(function (k) { return p.bar_page[k]; }));
-    startPos = { page: p.bar_page[p.order[0]], pos: 0, mark: null }; refCache = null; mapCache = {}; pvRect = {};
+    startPos = { page: p.bar_page[p.order[0]], pos: 0, mark: null }; refCache = null; mapCache = {}; pvRect = {}; baseKey = '';
     $('msg').hidden = false; $('msg').textContent = _t('楽譜を読み込んでいます…'); $('bar').textContent = '–'; hidePreview();
     var n = 0; imgs = p.images.map(function (f) { var im = new Image(); im.onload = function () { if (++n === p.images.length) { showPage(p.bar_page[p.order[0]]); $('go').disabled = false; } }; im.src = f; return im; });
     if (save) libAdd(src);
