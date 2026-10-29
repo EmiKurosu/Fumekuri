@@ -184,7 +184,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v97</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v98</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><b id="bar" style="display:none">–</b><span id="pg" style="display:inline-block;width:5ch;text-align:right;font-variant-numeric:tabular-nums">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;width:9.5ch;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"></span></div>
 </header>
@@ -1237,7 +1237,14 @@
         bg.restore(); baseKey = bk;
       }
       g.drawImage(baseCv, 0, 0);
-    } else g.drawImage(paSrc(reg.img, shownPage), reg.x0, reg.y0, w, h, ox, oy, w * s, h * s);
+    } else {                                     // an ordinary page: its picture is also kept (while zoomed it is a big picture, and redrawing it after every stroke made the pencil stall)
+      var pb = paOf(shownPage), bk2 = ['n', shownPage, c.width, c.height, s.toFixed(4), ox.toFixed(1), oy.toFixed(1), pb ? [pb.b, pb.c, pb.t, pb.A ? 1 : 0].join(',') : '', reg.img].join('|');
+      if (!baseCv || baseKey !== bk2) {
+        baseCv = baseCv || document.createElement('canvas'); baseCv.width = c.width; baseCv.height = c.height; var bg2 = baseCv.getContext('2d'); bg2.imageSmoothingQuality = 'high';
+        bg2.fillStyle = '#ffffff'; bg2.fillRect(0, 0, c.width, c.height); bg2.drawImage(paSrc(reg.img, shownPage), reg.x0, reg.y0, w, h, ox, oy, w * s, h * s); baseKey = bk2;
+      }
+      g.drawImage(baseCv, 0, 0);
+    }
     var b = playBar != null ? pkg.rects[playBar] : null;
     if (gp) { g.save(); g.beginPath(); g.rect(ox, oy, w * s, h * s); g.clip(); drawInk(g, view); g.restore(); } else drawInk(g, view);
     if (!ed) drawReps(g, view, d);
@@ -1305,16 +1312,16 @@
     sh.addColorStop(0, 'rgba(0,0,0,.36)'); sh.addColorStop(0.25, 'rgba(0,0,0,.2)'); sh.addColorStop(0.6, 'rgba(0,0,0,.06)'); sh.addColorStop(1, 'rgba(0,0,0,0)');
     g.strokeStyle = sh; g.lineWidth = sw * 2; g.lineCap = 'butt'; g.beginPath(); g.moveTo(px, py); g.quadraticCurveTo(cx, cy, qx, qy); g.stroke(); g.restore();
     // 2. the curled-over paper: pointed at the top, rounded and widest at the left end
-    var Wf = 0.17 * L, T = fold(0.8), E = [qx + ux * 0.22 * L + nx * Wf, qy + uy * 0.22 * L + ny * Wf];
-    function flap() {                                          // a triangle: the fold, the curled free edge (hollow) and a short bottom edge; the lower corner is pointed
-      var Q2 = [qx - ux * 0.06 * L + nx * 0.015 * L, qy - uy * 0.06 * L + ny * 0.015 * L];
-      g.beginPath(); g.moveTo(qx - ux * 0.06 * L, qy - uy * 0.06 * L); g.lineTo(qx, qy); for (var k = 1; k <= 24; k++) { var f = fold(0.8 * k / 24); g.lineTo(f[0], f[1]); }
-      g.quadraticCurveTo((T[0] + E[0]) / 2 - nx * 0.06 * L, (T[1] + E[1]) / 2 - ny * 0.06 * L, E[0], E[1]);
-      g.quadraticCurveTo((E[0] + Q2[0]) / 2 + nx * 0.03 * L - ux * 0.02 * L, (E[1] + Q2[1]) / 2 + ny * 0.03 * L - uy * 0.02 * L, Q2[0], Q2[1]); g.closePath();
+    var Wf = 0.17 * L, T = fold(0.97), E = [qx + ux * 0.2 * L + nx * Wf, qy + uy * 0.2 * L + ny * Wf], Lb = [qx + ux * 0.07 * L - nx * 0.02 * L, qy + uy * 0.07 * L - ny * 0.02 * L], S0 = [qx - ux * 0.04 * L, qy - uy * 0.04 * L];
+    function flap() {                                          // a triangle: the fold, the hollow curled edge, a hollow bottom edge that rises to a small rolled lobe at the left; the lower corner is pointed
+      g.beginPath(); g.moveTo(S0[0], S0[1]); g.lineTo(qx, qy); for (var k = 1; k <= 30; k++) { var f = fold(0.97 * k / 30); g.lineTo(f[0], f[1]); }
+      g.quadraticCurveTo((T[0] + E[0]) / 2 - nx * 0.07 * L, (T[1] + E[1]) / 2 - ny * 0.07 * L, E[0], E[1]);
+      g.quadraticCurveTo((E[0] + Lb[0]) / 2 - nx * 0.05 * L + ux * 0.0 * L, (E[1] + Lb[1]) / 2 - ny * 0.05 * L, Lb[0], Lb[1]);
+      g.quadraticCurveTo(Lb[0] - ux * 0.05 * L - nx * 0.012 * L, Lb[1] - uy * 0.05 * L - ny * 0.012 * L, S0[0], S0[1]); g.closePath();
     }
-    flap(); g.shadowColor = 'rgba(0,0,0,.22)'; g.shadowBlur = 16 * d; g.shadowOffsetX = nx * 4 * d; g.shadowOffsetY = ny * 4 * d + 2 * d; g.fillStyle = '#f4f4f4'; g.fill(); g.shadowColor = 'transparent';
-    var f0 = fold(0.35), fg = g.createLinearGradient(f0[0], f0[1], f0[0] + nx * Wf * 1.15, f0[1] + ny * Wf * 1.15);                      // the back of the paper: light grey at the fold, a little darker in the middle, white at the edge
-    fg.addColorStop(0, '#e6e6e6'); fg.addColorStop(0.4, '#cdcdcd'); fg.addColorStop(0.75, '#f0f0f0'); fg.addColorStop(1, '#fdfdfd');
+    flap(); g.shadowColor = 'rgba(0,0,0,.2)'; g.shadowBlur = 14 * d; g.shadowOffsetX = nx * 3 * d; g.shadowOffsetY = ny * 3 * d + 2 * d; g.fillStyle = '#f4f4f4'; g.fill(); g.shadowColor = 'transparent';
+    var f0 = fold(0.4), fg = g.createLinearGradient(f0[0], f0[1], f0[0] + nx * Wf * 1.1, f0[1] + ny * Wf * 1.1);                         // across the curl: dark at the fold, bright, dark, bright at the edge (a rolled sheet)
+    fg.addColorStop(0, '#a6a6a6'); fg.addColorStop(0.28, '#f1f1f1'); fg.addColorStop(0.6, '#c2c2c2'); fg.addColorStop(1, '#fcfcfc');
     flap(); g.fillStyle = fg; g.fill();
     g.restore();
   }
@@ -1372,8 +1379,8 @@
     var fail = function (e) { clearTimeout(prepT); starting = false; if (stopped) return; stopped = true; try { myCtx.close(); } catch (x) {} if (ctx === myCtx) ctx = null; running = false; $('go').textContent = _t('弾き始める'); $('go').classList.remove('on');
       showErr(_t('マイクを使えません（') + (e && (e.name || '') + ' ' + (e && e.message || e || '')).trim() + _t('）。Safari の「ぁあ」→「Webサイトの設定」でマイクを許可し、ページを再読み込みしてからもう一度押してください。')); };
     var resumed = myCtx.resume ? myCtx.resume().catch(function () {}) : Promise.resolve();
-    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } }).then(function (s) {
-      if (stopped) { s.getTracks().forEach(function (t) { t.stop(); }); return; }
+    micGet().then(function (s) {
+      if (stopped) { micRelease(s); return; }
       stream = s; makePager(); if (myCtx.state !== 'running' && myCtx.resume) resumed = myCtx.resume().catch(function () {});
       var src = myCtx.createMediaStreamSource(s), sink = myCtx.createGain(); sink.gain.value = 0; sink.connect(myCtx.destination);
       var feed = function (chunk) { diag.calls++; for (var q = 0; q < chunk.length; q += 16) { var a = Math.abs(chunk[q]); if (a > diag.peak) diag.peak = a; } if (pager) pager.feed(chunk); };
@@ -1414,7 +1421,7 @@
     keepRun();
     try { if (stream && pager && pager.gate && pager.gate.floor && pager.gate.peak > 0 && pager.gate.floor < 0.15 * pager.gate.peak) localStorage.setItem('nf', String(pager.gate.floor)); } catch (e) {}      // remember the room's noise level: next time, playing can start at once
     var hadOff = pkgSrc && Object.keys(repOff).length; running = false; testMode = false; syncTest(); if (hadOff) { repOff = {}; repTapT = {}; repApply(); } if (feeder) { clearInterval(feeder); feeder = null; }
-    try { if (mediaEl) { mediaEl.pause(); mediaEl.remove(); mediaEl = null; } if (node) node.disconnect(); if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); if (ctx) ctx.close(); if (wake) wake.release(); } catch (e) {}
+    try { if (mediaEl) { mediaEl.pause(); mediaEl.remove(); mediaEl = null; } if (node) node.disconnect(); if (stream) micIdle(stream); if (ctx) ctx.close(); if (wake) wake.release(); } catch (e) {}
     node = stream = ctx = wake = null; $('go').textContent = _t('弾き始める'); $('go').classList.remove('on'); $('herebtn').hidden = true; hereArm = false; $('herebtn').classList.remove('sel'); log(_t('止めました'));
   }
   var mediaEl = null, testMode = false;
@@ -1620,6 +1627,16 @@
     else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { manual(-1); e.preventDefault(); }
   });
   $('go').onclick = function () { running ? stop() : start(); };
+  /* the microphone: asked for once, then kept (switched off, not given back) while the app stays open, so that iOS does not ask again at every "弾き始める" */
+  var micKeep = null, micTimer = null;
+  function micGet() {
+    clearTimeout(micTimer);
+    if (micKeep && micKeep.getAudioTracks().length && micKeep.getAudioTracks().every(function (t) { return t.readyState === 'live'; })) { micKeep.getAudioTracks().forEach(function (t) { t.enabled = true; }); return Promise.resolve(micKeep); }
+    micKeep = null;
+    return navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } }).then(function (s) { micKeep = s; return s; });
+  }
+  function micIdle(s) { try { s.getAudioTracks().forEach(function (t) { t.enabled = false; }); } catch (e) {} clearTimeout(micTimer); micTimer = setTimeout(function () { micRelease(s); }, 20 * 60 * 1000); }      // after 20 minutes of not playing the microphone is given back
+  function micRelease(s) { try { s.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} if (micKeep === s) micKeep = null; }
   var preCtx = null;                              // created inside the tap on the button: iOS only lets an AudioContext make sound if it was started by a tap
   function openPicker() { try { var AC = window.AudioContext || window.webkitAudioContext; preCtx = new AC(); if (preCtx.resume) preCtx.resume(); } catch (e) { preCtx = null; } $('file').click(); }
   $('filebtn').onclick = function () { var n = 0; try { n = +localStorage.getItem('vhint') || 0; } catch (e) {} if (n >= 3) { openPicker(); return; } try { localStorage.setItem('vhint', n + 1); } catch (e) {} $('vhint').hidden = false; };
