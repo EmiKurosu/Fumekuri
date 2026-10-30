@@ -184,7 +184,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v100</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v101</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><b id="bar" style="display:none">–</b><span id="pg" style="display:inline-block;width:5ch;text-align:right;font-variant-numeric:tabular-nums">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;width:9.5ch;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"></span></div>
 </header>
@@ -251,12 +251,12 @@
       <label><span>めくる位置（最終小節の中）<b id="fracv">55%</b></span><input type="range" id="frac" min="20" max="90" step="5" value="55"><span style="display:flex;justify-content:space-between;font-size:12px;color:var(--dim);margin-top:-8px;line-height:1"><span>早め</span><span>遅め</span></span></label>
       <label><span>次ページの予告（何小節前から）<b id="prevv"></b></span><input type="range" id="prevbars" min="0" max="4" step="1" value="2"></label>
       <label><span>言語 / Language / Sprache</span><select id="langsel"><option value="auto">Auto</option><option value="ja">日本語</option><option value="en">English</option><option value="de">Deutsch</option></select></label>
+      <button type="button" id="diagbtn">動作の記録を書き出す（うまく動かなかったとき用）</button>
       <div id="advtempo" style="display:none">
       <label><span>テンポの追い方</span>
         <select id="tempomode"><option value="single">標準（速さがあまり変わらない曲）</option><option value="wide">広い（ラルゴ〜プレストのように、速さが大きく変わる曲）</option></select></label>
       <small id="tempoinfo">テンポ: 未学習（「弾いて覚える」で、通して1回弾くと、速さの変化を覚えます）</small>
       <button type="button" id="learnbtn" disabled>通して弾いて覚える（上級）</button>
-      <button type="button" id="diagbtn">動作の記録を書き出す（うまく動かなかったとき用）</button>
       <button type="button" id="learnfilebtn">録音ファイルから覚える（上級）</button><input type="file" id="learnfile" accept="audio/*" hidden>
       <button type="button" id="learnreset">覚えたテンポを消す</button>
       </div>
@@ -1302,14 +1302,14 @@
     g.save(); g.beginPath(); g.rect(gm.x0, gm.y0, gm.Wd, gm.Hd); g.clip();
     var px = gm.x0 + A, py = gm.y0, qx = gm.x0, qy = gm.y0 + B, ux = px - qx, uy = py - qy, L = Math.hypot(ux, uy) || 1; ux /= L; uy /= L;
     var nx = uy, ny = -ux; if (nx * ((px + qx) / 2 - gm.x0) + ny * ((py + qy) / 2 - gm.y0) < 0) { nx = -nx; ny = -ny; }                    // u: along the fold (from the left end to the top end), n: away from the corner
-    var cx = qx + ux * 0.62 * L - nx * 0.07 * L, cy = qy + uy * 0.62 * L - ny * 0.07 * L;                                                  // the fold: nearly straight, flattening at the top end
+    var cx = qx + ux * 0.5 * L, cy = qy + uy * 0.5 * L;                                                  // the fold: nearly straight, flattening at the top end
     function fold(t) { var a = (1 - t) * (1 - t), b = 2 * t * (1 - t), c = t * t; return [a * qx + b * cx + c * px, a * qy + b * cy + c * py]; }
     function under() { g.beginPath(); g.moveTo(gm.x0, gm.y0); g.lineTo(px, py); g.quadraticCurveTo(cx, cy, qx, qy); g.closePath(); }
     // 1. the next page, uncovered in the corner, softly shaded towards the fold
     under(); g.fillStyle = '#fff'; g.fill();
     g.save(); under(); g.clip(); g.drawImage(paSrc(gm.nreg.img, pl.np), gm.nreg.x0, gm.nreg.y0, gm.nw, gm.nh, gm.x0, gm.y0, gm.nw * gm.ns, gm.nh * gm.ns);
-    var fm = fold(0.5), sw = Math.min(0.17 * L, 230 * d), sh = g.createLinearGradient(fm[0], fm[1], fm[0] - nx * sw, fm[1] - ny * sw);
-    sh.addColorStop(0, 'rgba(0,0,0,.6)'); sh.addColorStop(0.12, 'rgba(0,0,0,.44)'); sh.addColorStop(0.32, 'rgba(0,0,0,.22)'); sh.addColorStop(0.62, 'rgba(0,0,0,.07)'); sh.addColorStop(1, 'rgba(0,0,0,0)');
+    var fm = fold(0.5), sw = Math.min(0.21 * L, 280 * d), sh = g.createLinearGradient(fm[0], fm[1], fm[0] - nx * sw, fm[1] - ny * sw);
+    sh.addColorStop(0, 'rgba(30,26,20,.55)'); sh.addColorStop(0.16, 'rgba(30,26,20,.5)'); sh.addColorStop(0.29, 'rgba(30,26,20,.32)'); sh.addColorStop(0.4, 'rgba(30,26,20,.17)'); sh.addColorStop(0.6, 'rgba(30,26,20,.05)'); sh.addColorStop(1, 'rgba(0,0,0,0)');
     g.strokeStyle = sh; g.lineWidth = sw * 2; g.lineCap = 'butt'; g.beginPath(); g.moveTo(px, py); g.quadraticCurveTo(cx, cy, qx, qy); g.stroke(); g.restore();
     // 2. the curled-over paper: pointed at the top, rounded and widest at the left end
     var Wf = 0.3 * L, T = fold(0.97), E = [qx + ux * 0.22 * L + nx * Wf, qy + uy * 0.22 * L + ny * Wf], Lb = [qx + ux * 0.05 * L + nx * 0.037 * L, qy + uy * 0.05 * L + ny * 0.037 * L], S0 = [qx - ux * 0.03 * L, qy - uy * 0.03 * L];
@@ -1319,9 +1319,9 @@
       g.quadraticCurveTo((E[0] + Lb[0]) / 2 - nx * 0.09 * L, (E[1] + Lb[1]) / 2 - ny * 0.09 * L, Lb[0], Lb[1]);
       g.quadraticCurveTo(Lb[0] - ux * 0.04 * L + nx * 0.02 * L, Lb[1] - uy * 0.04 * L + ny * 0.02 * L, S0[0], S0[1]); g.closePath();
     }
-    flap(); g.shadowColor = 'rgba(0,0,0,.14)'; g.shadowBlur = 12 * d; g.shadowOffsetX = nx * 3 * d; g.shadowOffsetY = ny * 3 * d + 2 * d; g.fillStyle = '#e4e4e4'; g.fill(); g.shadowColor = 'transparent';
-    var f0 = fold(0.4), fg = g.createLinearGradient(f0[0], f0[1], f0[0] + nx * Wf, f0[1] + ny * Wf);                         // across the curl: dark at the fold, bright, dark, bright at the edge (a rolled sheet)
-    fg.addColorStop(0, '#d4d4d4'); fg.addColorStop(0.09, '#c3c3c3'); fg.addColorStop(0.22, '#dadada'); fg.addColorStop(0.5, '#ececec'); fg.addColorStop(0.8, '#f6f6f6'); fg.addColorStop(1, '#fbfbfb');           // matt paper: dark grey at the fold, getting lighter towards the free edge (no gloss)
+    flap(); g.shadowColor = 'rgba(0,0,0,.14)'; g.shadowBlur = 12 * d; g.shadowOffsetX = nx * 3 * d; g.shadowOffsetY = ny * 3 * d + 2 * d; g.fillStyle = '#f3f2ef'; g.fill(); g.shadowColor = 'transparent';
+    var f0 = fold(0.4), fg = g.createLinearGradient(f0[0], f0[1], f0[0] + nx * Wf * 0.5, f0[1] + ny * Wf * 0.5);                         // across the curl: dark at the fold, bright, dark, bright at the edge (a rolled sheet)
+    fg.addColorStop(0, '#bdbbb6'); fg.addColorStop(0.1, '#c4c2bd'); fg.addColorStop(0.26, '#d4d2cd'); fg.addColorStop(0.46, '#ecebe7'); fg.addColorStop(0.66, '#fbfaf8'); fg.addColorStop(1, '#fefdfc');           // matt paper: dark grey at the fold, getting lighter towards the free edge (no gloss)
     flap(); g.fillStyle = fg; g.fill();
 
     g.restore();
@@ -1594,9 +1594,14 @@
   function hasStylus(e) { for (var i = 0; i < e.touches.length; i++) if (e.touches[i].touchType === 'stylus') return true; return false; }
   (function () {
     var m = document.querySelector('main'), sx = null, sy = null, st = 0;
-    m.addEventListener('touchstart', function (e) { if (e.touches.length !== 1 || e.touches[0].touchType === 'stylus' || penNear()) { sx = null; return; } sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); }, { passive: true });
+    m.addEventListener('touchstart', function (e) { pdrag = false; if (e.touches.length !== 1 || e.touches[0].touchType === 'stylus' || penNear()) { sx = null; return; } sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); pdrag = peelHit(e.touches[0]); }, { passive: true });
+    var pdrag = false;
+    function peelHit(t) {                        // is the finger on the turned-up corner (the triangle at the top left)?
+      try { if (!peel || !(peel.sc > 0) || peelAnim || !view || !pkg) return false; var gm = peelGeo(view, $('page'), peel); if (!gm) return false; var cp = cpt(t), A = gm.a * peel.sc, B = gm.b * peel.sc, mg = 30 * cp[2]; return (cp[0] - gm.x0 + mg) / (A + 2 * mg) + (cp[1] - gm.y0 + mg) / (B + 2 * mg) <= 1 && cp[0] >= gm.x0 - mg && cp[1] >= gm.y0 - mg; } catch (er) { return false; }
+    }
     m.addEventListener('touchend', function (e) {
       if (sx === null || pz || penNear()) { sx = null; return; } var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy; sx = null;
+      if (pdrag) { pdrag = false; if (dy > 40 && dy > 0.8 * Math.abs(dx) && peel && !peelAnim) { var nxt = Math.min(maxPage, (shownPage || 1) + 1); peelHold = null; peelFlip(function () { manual(1); }); return; } }
       if (Math.abs(dx) < 14 && Math.abs(dy) < 14 && Date.now() - st < 350 && view) {                       // a tap; two taps close together = "start here"
         var now = Date.now(), cp = cpt(t); lastTouchT = now;
         if (hereArm) { hereArm = false; $('herebtn').classList.remove('sel'); lastTap = null; var hp = vInv(view, cp[0], cp[1]); setStart(hp[0], hp[1]); return; }
