@@ -189,7 +189,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v110</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v111</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><b id="bar" style="display:none">–</b><span id="pg" style="display:inline-block;width:5ch;text-align:right;font-variant-numeric:tabular-nums">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;width:9.5ch;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"></span></div>
 </header>
@@ -795,8 +795,11 @@
     var a = Math.max(lastB - 1, this.runs[this.disp][0]), at = function (p) { var k = Math.floor(p); return bs[k] + (p - k) * (bs[k + 1] - bs[k]); };
     return Math.max(6, Math.min(30, 1.2 * (at(lastB + this.frac) - at(a))));
   };
+  PageTurner.prototype._sec = function (p) {                   // seconds of the nominal reference at a (fractional) bar position
+    var bs = this.barStart, n = this.order.length, k = Math.min(Math.max(Math.floor(p), 0), n - 1); return bs[k] + Math.min(1, Math.max(0, p - k)) * (bs[k + 1] - bs[k]);
+  };
   PageTurner.prototype.displayedPage = function () { return this.runs[this.disp][2]; };
-  PageTurner.prototype._turn = function (t, kind, to, pos) { this.events.push({ t: t, kind: kind, from: this.disp, to: to, pos: pos }); this.disp = to; return kind; };
+  PageTurner.prototype._turn = function (t, kind, to, pos) { this.dr = null; this.events.push({ t: t, kind: kind, from: this.disp, to: to, pos: pos }); this.disp = to; return kind; };
   PageTurner.prototype.update = function (t, pos, bps, conf, silent, match) {
     if (!silent) {
       this.hist.push(match); if (this.hist.length > this.histN) this.hist.shift();
@@ -807,6 +810,17 @@
       if (conf >= this.confThr && match >= mthr) { this.stable += this.dt; this.bad = 0; }
       else if (conf >= 0.9 && match >= 0.1 && recent >= 0.45 && this.bad < this.graceS) this.bad += this.dt;
       else { this.stable = 0; this.bad = 0; }
+    }
+    if (this.barStart && !silent && this.disp < this.runs.length - 1) {      // dead reckoning: when the place stands still (or jumps about) although the player keeps playing, the time spent since the last place that really moved with the music tells where the player must be; if that is past the turn point, turn
+      var d = this.dr || (this.dr = { tp: 0, w0: 0, rt0: null, pace: 1, aTp: 0, aRt: 0, stall: 0 }), rt = this._sec(pos);
+      d.tp += this.dt; if (d.rt0 === null) { d.rt0 = rt; d.aRt = rt; }
+      if (d.tp - d.w0 >= 4) {
+        var wl = d.tp - d.w0, dl = rt - d.rt0, ex = d.pace * wl;
+        if (dl >= 0.35 * ex && dl <= 3 * ex) { d.aRt = rt; d.aTp = d.tp; d.pace = Math.min(1.8, Math.max(0.6, 0.5 * d.pace + 0.5 * dl / wl)); d.stall = 0; } else d.stall += wl;
+        d.w0 = d.tp; d.rt0 = rt;
+      }
+      var lb = this.runs[this.disp][1];
+      if (d.stall >= 8) { var est = d.aRt + d.pace * (d.tp - d.aTp); if (est >= this._sec(lb + this.frac) && est < this._sec(lb + 1) + 15) return this._turn(t, 'turn', this.disp + 1, pos); }
     }
     { var conf0 = !silent && conf >= this.confThr && this.stable >= this.stableS;      // speed limit: a jump to a place the player cannot have reached since the last clearly-confirmed place (even at twice the usual pace) is not believed, and cannot turn a page
       var vmax = 2 * Math.max(this.vEma || 0, 0.05), reach = this.anc ? this.anc.pos + vmax * (t - this.anc.t) + 0.5 : Infinity, plaus = pos <= reach;
@@ -1363,7 +1377,7 @@
     }
     if (ed && fr) { view.frame = [ox + fr[0] * bw * s, oy + fr[1] * bh * s, ox + (1 - fr[2]) * bw * s, oy + (1 - fr[3]) * bh * s]; view.bw = bw; view.bh = bh; geoOverlay(g, view, d); }
   }
-  function showPage(p) { if (pkg && pkg.kind === 'song') setTimeout(function () { var l = 'p' + (p + 1); if (pkg.rects[l] && pvRect[l] === undefined && imgs[pkg.rects[l].img]) previewRect(l); }, 400); if (peel && peel.pg !== undefined && peel.pg !== p) { peel = null; peelHold = null; peelAnim = false; peelKey = ''; peelLast = -1; }       /* a half-turned corner belongs to the page it was made for */ shownPage = p; $('pg').textContent = 'p.' + p; $('msg').hidden = true; jumpUI(); paUI(); geoUI(); drawPage(null, 0); setTimeout(function () { try { var r = pageRegion(p + 1); if (r && paOf(p + 1)) paSrc(r.img, p + 1); } catch (e) {} }, 700); }
+  function showPage(p) { if (pkg && pkg.kind === 'song') setTimeout(function () { var l = 'p' + (p + 1); if (pkg.rects[l] && pvRect[l] === undefined && imgs[pkg.rects[l].img]) previewRect(l); }, 400); if (peel && peel.pg !== undefined && peel.pg !== p) { peel = null; peelHold = null; peelAnim = false; peelKey = ''; peelLast = -1; }       /* a half-turned corner belongs to the page it was made for */ shownPage = p; shows.push([pager && pager.last ? Math.round(pager.last.t * 100) / 100 : -1, p, showWhy]); $('pg').textContent = 'p.' + p; $('msg').hidden = true; jumpUI(); paUI(); geoUI(); drawPage(null, 0); setTimeout(function () { try { var r = pageRegion(p + 1); if (r && paOf(p + 1)) paSrc(r.img, p + 1); } catch (e) {} }, 700); }
 
   function labText(lab, idx) { return pkg.kind === 'song' ? '●' : lab; }
   var pvRect = {};
@@ -1391,6 +1405,7 @@
 
 
   /* ---------- the next page peels in from the top-left corner, over the music that has already been played ---------- */
+  var shows = [], showWhy = 'auto';       // what the screen did (page shown / turn waiting / fold started), with the follower's time, for the record of a playing session
   var peelTok = 0, peel = null, peelAnim = false, peelLast = -1, peelHold = null, peelKey = '', peelMs = 0;       // peel = {np: next page, lab: its first piece, sc: 0..1 (1 = the planned size; more while the page is turned over)}
   function peelGeo(v, c, pl) {                            // size of the corner (legs a, b in screen pixels) and the screen rectangle of the shown page
     var reg = v.reg, x0 = Math.max(0, v.ox), y0 = Math.max(0, v.oy), x1 = Math.min(c.width, v.ox + (reg.x1 - reg.x0) * v.s), y1 = Math.min(c.height, v.oy + (reg.y1 - reg.y0) * v.s), Wd = x1 - x0, Hd = y1 - y0;
@@ -1436,7 +1451,7 @@
   }
   function peelCalc() {                                   // while playing: how far the corner has come (0 at the start of the page's last line of music, 1 at the moment of the turn)
     if (!pager || !running || !pkg || pkg.kind !== 'song' || peelAnim || geoEdit()) return;
-    if (peelHold) { var pp = pager.last.pos || 0; if (pp >= peelHold.bar - 0.3 || performance.now() - peelHold.ms > 2500) { var hv = peelHold; peelHold = null; peelFlip(function () { showPage(hv.ev.page); log(_t('めくり') + ' → p.' + hv.ev.page + ' (' + hv.ev.t.toFixed(1) + 's)'); }); } return; }       // the page turns only after the first bar of the next page has begun
+    if (peelHold) { var pp = pager.last.pos || 0; if (pp >= peelHold.bar - 0.3 || performance.now() - peelHold.ms > 900) { var hv = peelHold; peelHold = null; shows.push([pager.last.t ? Math.round(pager.last.t * 100) / 100 : -1, hv.ev.page, 'flip']); peelFlip(function () { showPage(hv.ev.page); log(_t('めくり') + ' → p.' + hv.ev.page + ' (' + hv.ev.t.toFixed(1) + 's)'); }); } return; }       // the page turns only after the first bar of the next page has begun
     var tu = pager.turner, disp = tu.disp; if (disp >= tu.runs.length - 1) { setPeel(null); return; }
     var r = tu.runs[disp], rn = tu.runs[disp + 1]; if (r[2] === rn[2] || shownPage !== r[2]) { setPeel(null); return; }
     var bs = getRef().barStart, pos = pager.last.pos || 0, k = Math.min(Math.max(Math.floor(pos), 0), pkg.order.length - 1); if (tu.runOf[k] !== disp) { peelKey = ''; setPeel(null); return; }       // after a page was moved by hand the follower may still be somewhere else: no curl until it is on the page that is shown
@@ -1453,7 +1468,7 @@
   }
   function peelFlip(done) {                               // the turn: the fold runs across the whole page, then the next page is shown
     var gm = view ? peelGeo(view, $('page'), peel) : null; if (!peel || !gm) { hidePreview(); done(); return; }
-    var from = peel.sc, to = (Math.max(gm.Wd, 1) / gm.a + Math.max(gm.Hd, 1) / gm.b) * 1.04, t0 = performance.now(), D = 900, tk = peelTok; peelAnim = true;
+    var from = peel.sc, to = (Math.max(gm.Wd, 1) / gm.a + Math.max(gm.Hd, 1) / gm.b) * 1.04, t0 = performance.now(), D = 650, tk = peelTok; peelAnim = true;
     (function step(now) { if (tk !== peelTok) { peelAnim = false; return; }       /* the page was moved by hand meanwhile */ var q = Math.min(1, (now - t0) / D), e = q * q * (3 - 2 * q); if (peel) peel.sc = from + (to - from) * e; drawPage(null, 0); if (q < 1) requestAnimationFrame(step); else { peelAnim = false; peel = null; done(); } })(t0);
   }
 
@@ -1463,7 +1478,7 @@
       var run = pager.turner.runs[pager.turner.disp + 1], lab = pkg.order[run[0]];
       showPreview(lab, ev.page); log(_t('予告: ') + lab + ' (p.' + ev.page + ')');
     } else if (ev.kind === 'turn' && peel && peel.sc > 0 && !peelAnim) {
-      peelHold = { ev: ev, bar: pager.turner.runs[pager.turner.disp][0], ms: performance.now() };
+      peelHold = { ev: ev, bar: pager.turner.runs[pager.turner.disp][0], ms: performance.now() }; shows.push([Math.round(ev.t * 100) / 100, ev.page, 'hold']);
     } else {
       peelHold = null; hidePreview(); showPage(ev.page); log((ev.kind === 'turn' ? _t('めくり') : _t('位置を修正')) + ' → p.' + ev.page + ' (' + ev.t.toFixed(1) + 's)');
     }
@@ -1482,7 +1497,7 @@
   function slowUI() { $('fsslow').classList.toggle('sel', slowOn); $('slowbtn').classList.toggle('sel', slowOn); $('slowbtn').setAttribute('aria-pressed', slowOn ? 'true' : 'false'); }
   slowUI();
   function start() {
-    if (running || starting) return; starting = true;
+    if (running || starting) return; starting = true; shows = [];
     var AC = window.AudioContext || window.webkitAudioContext; ctx = preCtx && preCtx.state !== 'closed' ? preCtx : new AC(); preCtx = null;
     var myCtx = ctx, stopped = false, diag = { calls: 0, peak: 0, via: 'worklet' };
     $('go').textContent = _t('準備中…'); var prepT = setTimeout(function () { if (starting) showErr(_t('マイクを準備しています…（許可の確認が出たら「許可」を押してください）')); }, 1500);
@@ -1583,8 +1598,8 @@
   function keepRun() {
     try {
       if (!pager || !pager.trace || !pager.trace.length) return; var tr = pager.trace, st = Math.max(1, Math.round(tr.length / 1500)), r2 = function (v) { return Math.round(v * 100) / 100; };
-      lastRun = { app: 'v110', title: pkg.title, at: new Date().toISOString(), start: { page: startPos.page, pos: r2(startPos.pos), mark: !!startPos.mark }, frac: +$('frac').value, previewBars: +$('prevbars').value, noiseFloor: pager.gate && pager.gate.floor, nBars: pkg.order.length,
-        turns: pager.turner.events.map(function (e) { return { t: r2(e.t), kind: e.kind, from: e.from, to: e.to, pos: r2(e.pos) }; }), previews: pager.turner.previews.map(function (e) { return { t: r2(e.t), from: e.from, to: e.to, pos: r2(e.pos) }; }),
+      lastRun = { app: 'v111', title: pkg.title, at: new Date().toISOString(), start: { page: startPos.page, pos: r2(startPos.pos), mark: !!startPos.mark }, frac: +$('frac').value, previewBars: +$('prevbars').value, noiseFloor: pager.gate && pager.gate.floor, nBars: pkg.order.length,
+        turns: pager.turner.events.map(function (e) { return { t: r2(e.t), kind: e.kind, from: e.from, to: e.to, pos: r2(e.pos) }; }), previews: pager.turner.previews.map(function (e) { return { t: r2(e.t), from: e.from, to: e.to, pos: r2(e.pos) }; }), shows: shows.slice(0, 400),
         trace: tr.filter(function (r, i) { return i % st === 0; }).map(function (r) { return [r2(r[0]), r2(r[1]), r2(r[2]), r[3], r2(r[4] || 0)]; }) };
     } catch (e) { lastRun = null; }
   }
@@ -1733,7 +1748,7 @@
   function jumpUI() { var on = !!pkg && maxPage > 1; $('pgfirst').hidden = $('pglast').hidden = !on; $('pgfirst').disabled = !on || shownPage <= 1; $('pglast').disabled = !on || shownPage >= maxPage; }
   $('pgfirst').onclick = function () { manual(-9999); }; $('pglast').onclick = function () { manual(9999); };
   function manual(delta) {
-    var p = Math.min(maxPage, Math.max(1, (shownPage || 1) + delta)); hidePreview(); showPage(p);
+    var p = Math.min(maxPage, Math.max(1, (shownPage || 1) + delta)); hidePreview(); showWhy = 'swipe'; showPage(p); showWhy = 'auto';
     if (pager) { var rs = pager.turner.runs, cr = pager.turner.runOf[Math.min(Math.max(Math.floor(pager.last.pos || 0), 0), pkg.order.length - 1)], bk = -1; for (var k = 0; k < rs.length; k++) if (rs[k][2] === p && (bk < 0 || Math.abs(k - cr) < Math.abs(bk - cr))) bk = k; if (bk >= 0) { pager.turner.disp = bk; pager.turner.previewed = -1; } }   // the follower continues from the page you chose
   }
   ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (n) { document.addEventListener(n, function (e) { e.preventDefault(); }, { passive: false }); });      // iOS: no browser zoom of the whole screen (the score has its own pinch zoom)
