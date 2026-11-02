@@ -194,7 +194,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v134</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v135</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><b id="bar" style="display:none">–</b><span id="pg" style="display:inline-block;width:5ch;text-align:right;font-variant-numeric:tabular-nums">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;width:9.5ch;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"></span></div>
 </header>
@@ -815,12 +815,17 @@
   PageTurner.prototype._sec = function (p) {                   // seconds of the nominal reference at a (fractional) bar position
     var bs = this.barStart, n = this.order.length, k = Math.min(Math.max(Math.floor(p), 0), n - 1); return bs[k] + Math.min(1, Math.max(0, p - k)) * (bs[k + 1] - bs[k]);
   };
+  PageTurner.prototype._drOk = function () {      // slow mode: the stand-in clock says that at least 80 % of the page (from where it was started) has been played; a place reported by the tracker may turn only then (the player is often a little faster than the fixed speed, but the tracker alone jumps between look-alike places)
+    var d = this.dr; if (!d || !this.barStart || this.anchorPos === undefined) return false;
+    var a0 = this._sec(this.anchorPos), tg = this._sec(this.runs[this.disp][1] + this.frac), est = d.aRt + d.pace * (d.tp - d.aTp);
+    return est - a0 >= 0.8 * (tg - a0);
+  };
   PageTurner.prototype.displayedPage = function () { return this.runs[this.disp][2]; };
   PageTurner.prototype._turn = function (t, kind, to, pos) { this.dr = null; this.anchorPos = kind === 'turn' ? this.runs[to][0] : pos; this.events.push({ t: t, kind: kind, from: this.disp, to: to, pos: pos }); this.disp = to; return kind; };
   PageTurner.prototype.update = function (t, pos, bps, conf, silent, match, rms) {
     if (rms !== undefined && !this.onset) {      // the dead-reckoning clock of the slow mode starts with the first real sound (about 100 x the room noise), not when the button was pressed: the player often takes a few seconds before the first note
-      this.nfl = this.nfl === undefined ? rms : Math.min(this.nfl, rms);
-      if (rms > 0.01 && rms > 30 * Math.max(this.nfl, 1e-4)) this.onset = true;
+      this.nfl = this.nfl === undefined ? rms : Math.min(this.nfl, rms); this.rmsMax = Math.max(this.rmsMax || 0, rms);
+      if (rms > 0.003 && rms > 30 * Math.max(this.nfl, 1e-4)) { this.onset = true; this.onsetT = t; }      // (a quiet piano heard from a distance may stay below 0.01)
     }
     if (!silent) {
       this.hist.push(match); if (this.hist.length > this.histN) this.hist.shift();
@@ -843,6 +848,10 @@
       }
       var lb = this.runs[this.disp][1];
       if (d.stall >= 8) { var est = d.aRt + d.pace * (d.tp - d.aTp); if (est >= this._sec(lb + this.frac) && est < this._sec(lb + 1) + 15) return this._turn(t, 'turn', this.disp + 1, pos); }
+    }
+    if (this.slow && this.disp < this.runs.length - 1) {      // slowly: the clock says the page is (nearly) played and the tracker, even if unsteady, has been at the end of the page (or past it) for 0.4 s: turn
+      var lb2 = this.runs[this.disp][1];
+      if (!silent && conf >= this.confThr && pos >= lb2 + this.frac - 0.15 && pos < lb2 + 2 && this._drOk()) { this.endS = (this.endS || 0) + this.dt; if (this.endS >= 0.4) { this.endS = 0; return this._turn(t, 'turn', this.disp + 1, pos); } } else this.endS = 0;
     }
     { var conf0 = !silent && conf >= this.confThr && this.stable >= this.stableS;      // speed limit: a jump to a place the player cannot have reached since the last clearly-confirmed place (even at twice the usual pace) is not believed, and cannot turn a page
       // the limit is measured in seconds of the nominal reference, not in bars: the pseudo-bars of a page differ a lot in length (the last two bars are short), so a "bars per second" speed learned in a long bar would forbid the normal pace in the short ones
@@ -873,10 +882,11 @@
         this.previewed = this.disp; this.previews.push({ t: t, from: this.disp, to: this.disp + 1, pos: pos, firstBar: this.runs[this.disp + 1][0] });
         return 'preview';
       }
-      if (pos + bps * this.leadS >= last + this.frac && pos < last + 1) return this._turn(t, 'turn', this.disp + 1, pos);
+      if (pos + bps * this.leadS >= last + this.frac && pos < last + 1 && (!this.slow || this._drOk())) return this._turn(t, 'turn', this.disp + 1, pos);
       return null;
     }
     if (cur === this.disp - 1 && pos < this.runs[cur][1] + 1) return null;
+    if (this.slow && cur === this.disp + 1 && this.disp < this.runs.length - 1 && this._drOk()) return this._turn(t, 'turn', this.disp + 1, pos);      // slowly: the place already passed the end of the page (it skipped the turning zone) and the clock agrees that the page is nearly played
     if (cur !== this.disp) { if (cur !== this.disp + 1 && this.strict < (Math.abs(cur - this.disp) > 1 ? 6.0 : 3.0)) return null; return this._turn(t, 'resync', cur, pos); }     // a jump to another page needs 3 s (more than one page away: 6 s) of clear evidence
     return null;
   };
@@ -1648,8 +1658,8 @@
   }
   /* ---------- how fast did the player play?  measured after every playing, shown so that the player can choose the "slowly" degree ---------- */
   function paceCheck() {
-    var pg = pager, box = $('pacebar'); box.hidden = true; if (!pg || !pkg || !pg.turner || !pg.turner.events.length || !startPos) return;
-    var ev = pg.turner.events[pg.turner.events.length - 1], rn = pg.turner.runs[ev.from]; if (!rn) return;
+    var pg = pager, box = $('pacebar'); box.hidden = true; if (!pg || !pkg || !pg.turner || !startPos) return;
+    var evs = pg.turner.events, rn = pg.turner.runs[evs.length ? evs[evs.length - 1].from : pg.turner.disp]; if (!rn) return;
     var sp = startPos.pos, endPos = rn[1] + pg.turner.frac, sl = slowOn;
     setTimeout(function () {
       var r = null; try { r = pg.measurePace(sp, endPos); } catch (e) { r = null; }
@@ -1730,7 +1740,7 @@
   function keepRun() {
     try {
       if (!pager || !pager.trace || !pager.trace.length) return; var tr = pager.trace, st = Math.max(1, Math.round(tr.length / 1500)), r2 = function (v) { return Math.round(v * 100) / 100; };
-      lastRun = { app: 'v134', title: pkg.title, at: new Date().toISOString(), start: { page: startPos.page, pos: r2(startPos.pos), mark: !!startPos.mark }, frac: +$('frac').value, previewBars: +$('prevbars').value, noiseFloor: pager.gate && pager.gate.floor, nBars: pkg.order.length, barStart: (function () { try { return Array.prototype.map.call(pager.nominal.barStart, r2); } catch (e) { return null; } })(), slowPace: slowOn ? slowPace() : null,
+      lastRun = { app: 'v135', title: pkg.title, at: new Date().toISOString(), start: { page: startPos.page, pos: r2(startPos.pos), mark: !!startPos.mark }, frac: +$('frac').value, previewBars: +$('prevbars').value, noiseFloor: pager.gate && pager.gate.floor, nBars: pkg.order.length, onsetT: pager.turner && pager.turner.onsetT, rmsMax: pager.turner && pager.turner.rmsMax, barStart: (function () { try { return Array.prototype.map.call(pager.nominal.barStart, r2); } catch (e) { return null; } })(), slowPace: slowOn ? slowPace() : null,
         turns: pager.turner.events.map(function (e) { return { t: r2(e.t), kind: e.kind, from: e.from, to: e.to, pos: r2(e.pos) }; }), previews: pager.turner.previews.map(function (e) { return { t: r2(e.t), from: e.from, to: e.to, pos: r2(e.pos) }; }), shows: shows.slice(0, 400),
         trace: tr.filter(function (r, i) { return i % st === 0; }).map(function (r) { return [r2(r[0]), r2(r[1]), r2(r[2]), r[3], r2(r[4] || 0)]; }) };
     } catch (e) { lastRun = null; }
