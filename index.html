@@ -193,7 +193,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v128</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v129</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><b id="bar" style="display:none">–</b><span id="pg" style="display:inline-block;width:5ch;text-align:right;font-variant-numeric:tabular-nums">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;width:9.5ch;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"></span></div>
 </header>
@@ -1606,7 +1606,7 @@
     return _t('{a} ページ目 → {b} ページ目のめくり').replace('{a}', q.page).replace('{b}', q.page + 1) + ': ' + a;
   }
   function probCheck() {
-    if (!lastRun || !pager || !pkg) return; if (lastRun.slowPace) { try { $('probbar').hidden = true; } catch (e) {} return; }      // slowly mode: the place the follower reports is not what decides the turn there (a clock does), so it says nothing about the tempo of the recording var tr = AutoPage.findTrouble(lastRun, pager.turner.runs, pager.turner.frac), seen = {};
+    if (!lastRun || !pager || !pkg) return; if (lastRun.slowPace) { try { $('probbar').hidden = true; (lastRun.turns || []).forEach(function (e) { if (e.kind === 'turn' && pager.turner.runs[e.from]) delete probs[pager.turner.runs[e.from][2]]; }); probSave(); drawPage(null, 0); } catch (e) {} return; }      // a page that was turned in this run loses its old mark      // slowly mode: the place the follower reports is not what decides the turn there (a clock does), so it says nothing about the tempo of the recording var tr = AutoPage.findTrouble(lastRun, pager.turner.runs, pager.turner.frac), seen = {};
     pager.turner.runs.forEach(function (rn, i) { if (i < pager.turner.runs.length - 1) { var hit = tr.filter(function (q) { return q.run === i; })[0], pg = rn[2], was = probs[pg]; if (hit) { probs[pg] = { reason: hit.reason, delay: hit.delay, dis: false }; } else if (was && lastRun.trace.some(function (x) { return !x[3] && x[1] >= rn[1] + pager.turner.frac - 0.02; })) delete probs[pg]; } });
     probSave(); probBar(tr.map(function (q) { return q.page; }));
   }
@@ -1655,7 +1655,7 @@
   function keepRun() {
     try {
       if (!pager || !pager.trace || !pager.trace.length) return; var tr = pager.trace, st = Math.max(1, Math.round(tr.length / 1500)), r2 = function (v) { return Math.round(v * 100) / 100; };
-      lastRun = { app: 'v128', title: pkg.title, at: new Date().toISOString(), start: { page: startPos.page, pos: r2(startPos.pos), mark: !!startPos.mark }, frac: +$('frac').value, previewBars: +$('prevbars').value, noiseFloor: pager.gate && pager.gate.floor, nBars: pkg.order.length, barStart: (function () { try { return Array.prototype.map.call(pager.nominal.barStart, r2); } catch (e) { return null; } })(), slowPace: slowOn ? slowPace() : null,
+      lastRun = { app: 'v129', title: pkg.title, at: new Date().toISOString(), start: { page: startPos.page, pos: r2(startPos.pos), mark: !!startPos.mark }, frac: +$('frac').value, previewBars: +$('prevbars').value, noiseFloor: pager.gate && pager.gate.floor, nBars: pkg.order.length, barStart: (function () { try { return Array.prototype.map.call(pager.nominal.barStart, r2); } catch (e) { return null; } })(), slowPace: slowOn ? slowPace() : null,
         turns: pager.turner.events.map(function (e) { return { t: r2(e.t), kind: e.kind, from: e.from, to: e.to, pos: r2(e.pos) }; }), previews: pager.turner.previews.map(function (e) { return { t: r2(e.t), from: e.from, to: e.to, pos: r2(e.pos) }; }), shows: shows.slice(0, 400),
         trace: tr.filter(function (r, i) { return i % st === 0; }).map(function (r) { return [r2(r[0]), r2(r[1]), r2(r[2]), r[3], r2(r[4] || 0)]; }) };
     } catch (e) { lastRun = null; }
