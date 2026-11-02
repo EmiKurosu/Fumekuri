@@ -193,7 +193,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v129</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v131</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><b id="bar" style="display:none">–</b><span id="pg" style="display:inline-block;width:5ch;text-align:right;font-variant-numeric:tabular-nums">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;width:9.5ch;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"></span></div>
 </header>
@@ -854,12 +854,12 @@
       }
       if (!plaus) { this.stable = 0; this.strict = 0; this.dwell = 0; return null; } }
     { var nn0 = this.order.length, cur0 = this.runOf[Math.min(Math.max(Math.floor(pos), 0), nn0 - 1)], lastB = this.runs[this.disp][1];      // stuck in the last bar of the page: when the player has been in it for a long time while it still sounds like it, turn anyway
-      if (!silent && cur0 === this.disp && this.disp < this.runs.length - 1 && pos >= lastB && pos < lastB + 1 && conf >= this.confThr) {
+      if (!this.slow && !silent && cur0 === this.disp && this.disp < this.runs.length - 1 && pos >= lastB && pos < lastB + 1 && conf >= this.confThr) {
         this.dwell = (this.dwell || 0) + this.dt; var lim = Math.min(8, Math.max(3, 2.5 / Math.max(bps, 0.01)));
         if (this.dwell > lim) { this.dwell = 0; return this._turn(t, 'turn', this.disp + 1, pos); }
       } else if (!silent) this.dwell = 0;
       if (silent) { this.silS = (this.silS || 0) + this.dt; if (this.silS > 3) this.st = 0; }      // lost track near the end of the page: the tracker may jump around or stand still there, so the sound time spent in the last two bars is added up (a pause of 3 s starts it afresh); when it is clearly longer than those bars can take, turn
-      else { this.silS = 0; if (cur0 === this.disp && this.disp < this.runs.length - 1 && pos >= lastB - 1 && pos < lastB + 1) {
+      else { this.silS = 0; if (!this.slow && cur0 === this.disp && this.disp < this.runs.length - 1 && pos >= lastB - 1 && pos < lastB + 1) {
         this.st = (this.st || 0) + this.dt; var lim2 = this._turnLimit(lastB);
         if (this.st > lim2) { this.st = 0; return this._turn(t, 'turn', this.disp + 1, pos); } } } }
     if (this.stable < (this.fastStart && t < 4 ? 0.5 : this.stableS) || silent) return null;      // started from a flag: the place is known, so the first turn need not wait for the full 1.2 s of evidence
@@ -1415,7 +1415,7 @@
     if (!ed) drawReps(g, view, d);
     if (!ed) drawPeel(g, view, d);
     if (!ed) drawProb(g, view, d);
-    var mk = startPos.mark; if (mk && mk.page === shownPage) {                      // the flag: "start here"
+    var mk = startPos.mark; if (mk && mk.page === shownPage && !(peel && peel.sc > 0)) {                      // the flag: "start here" (not on top of the curl: the next page is being shown there)
       var fx = vX(view, mk.x, mk.y), fy = vY(view, mk.x, mk.y), u = d;
       g.save(); g.lineJoin = 'round'; g.beginPath(); g.moveTo(fx, fy); g.lineTo(fx, fy - 34 * u); g.lineTo(fx + 22 * u, fy - 27 * u); g.lineTo(fx, fy - 20 * u);
       g.strokeStyle = '#fff'; g.lineWidth = 6 * u; g.stroke(); g.strokeStyle = '#15803d'; g.fillStyle = '#16a34a'; g.lineWidth = 2.6 * u; g.stroke(); g.fill();
@@ -1655,7 +1655,7 @@
   function keepRun() {
     try {
       if (!pager || !pager.trace || !pager.trace.length) return; var tr = pager.trace, st = Math.max(1, Math.round(tr.length / 1500)), r2 = function (v) { return Math.round(v * 100) / 100; };
-      lastRun = { app: 'v129', title: pkg.title, at: new Date().toISOString(), start: { page: startPos.page, pos: r2(startPos.pos), mark: !!startPos.mark }, frac: +$('frac').value, previewBars: +$('prevbars').value, noiseFloor: pager.gate && pager.gate.floor, nBars: pkg.order.length, barStart: (function () { try { return Array.prototype.map.call(pager.nominal.barStart, r2); } catch (e) { return null; } })(), slowPace: slowOn ? slowPace() : null,
+      lastRun = { app: 'v131', title: pkg.title, at: new Date().toISOString(), start: { page: startPos.page, pos: r2(startPos.pos), mark: !!startPos.mark }, frac: +$('frac').value, previewBars: +$('prevbars').value, noiseFloor: pager.gate && pager.gate.floor, nBars: pkg.order.length, barStart: (function () { try { return Array.prototype.map.call(pager.nominal.barStart, r2); } catch (e) { return null; } })(), slowPace: slowOn ? slowPace() : null,
         turns: pager.turner.events.map(function (e) { return { t: r2(e.t), kind: e.kind, from: e.from, to: e.to, pos: r2(e.pos) }; }), previews: pager.turner.previews.map(function (e) { return { t: r2(e.t), from: e.from, to: e.to, pos: r2(e.pos) }; }), shows: shows.slice(0, 400),
         trace: tr.filter(function (r, i) { return i % st === 0; }).map(function (r) { return [r2(r[0]), r2(r[1]), r2(r[2]), r[3], r2(r[4] || 0)]; }) };
     } catch (e) { lastRun = null; }
