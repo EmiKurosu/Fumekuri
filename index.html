@@ -193,7 +193,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v126</span>
+  <h1 id="title">譜めくりくん</h1><span id="ver" style="color:var(--dim);font-size:11px">v127</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><b id="bar" style="display:none">–</b><span id="pg" style="display:inline-block;width:5ch;text-align:right;font-variant-numeric:tabular-nums">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;width:9.5ch;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"></span></div>
 </header>
@@ -1501,8 +1501,9 @@
     if (peelHold) { var pp = pager.last.pos || 0; if (pp >= peelHold.bar - 0.3 || performance.now() - peelHold.ms > 900) { var hv = peelHold; peelHold = null; shows.push([pager.last.t ? Math.round(pager.last.t * 100) / 100 : -1, hv.ev.page, 'flip']); peelFlip(function () { showPage(hv.ev.page); log(_t('めくり') + ' → p.' + hv.ev.page + ' (' + hv.ev.t.toFixed(1) + 's)'); }); } return; }       // the page turns only after the first bar of the next page has begun
     var tu = pager.turner, disp = tu.disp; if (disp >= tu.runs.length - 1) { setPeel(null); return; }
     var r = tu.runs[disp], rn = tu.runs[disp + 1]; if (r[2] === rn[2] || shownPage !== r[2]) { setPeel(null); return; }
-    var bs = getRef().barStart, pos = pager.last.pos || 0, k = Math.min(Math.max(Math.floor(pos), 0), pkg.order.length - 1); if (tu.runOf[k] !== disp) { peelKey = ''; setPeel(null); return; }       // after a page was moved by hand the follower may still be somewhere else: no curl until it is on the page that is shown
-    var tnow = bs[k] + (pos - k) * (bs[k + 1] - bs[k]);
+    var bs = getRef().barStart, pos = pager.last.pos || 0, k = Math.min(Math.max(Math.floor(pos), 0), pkg.order.length - 1); var slowT = null; if (tu.slow) { if (!tu.dr || !tu.onset) { setPeel(null); return; } slowT = tu.dr.aRt + tu.dr.pace * (tu.dr.tp - tu.dr.aTp); }      // slow mode: the place the follower reports jumps between look-alike places, so the curl follows the same clock as the turn itself
+    if (slowT === null && tu.runOf[k] !== disp) { peelKey = ''; setPeel(null); return; }       // after a page was moved by hand the follower may still be somewhere else: no curl until it is on the page that is shown
+    var tnow = slowT !== null ? slowT : bs[k] + (pos - k) * (bs[k + 1] - bs[k]);
     var last = r[1], tT = bs[last] + tu.frac * (bs[last + 1] - bs[last]), tB = bs[last + 1], tA = bs[r[0]], f0 = 0.8, nS = 0;
     try { if (!mapCache[shownPage]) mapCache[shownPage] = Song.inkMap(imgs[shownPage - 1]); var q = mapCache[shownPage].last && mapCache[shownPage].last(); if (q) { f0 = q.f0; nS = q.n || 0; } } catch (e) {}
     var tr0 = nS >= 2 ? tA + ((nS - 1) + 0.2) / nS * (tB - tA) : tA + f0 * (tB - tA);                      // the page time is split equally between the systems: start a little way into the last one
@@ -1653,7 +1654,7 @@
   function keepRun() {
     try {
       if (!pager || !pager.trace || !pager.trace.length) return; var tr = pager.trace, st = Math.max(1, Math.round(tr.length / 1500)), r2 = function (v) { return Math.round(v * 100) / 100; };
-      lastRun = { app: 'v126', title: pkg.title, at: new Date().toISOString(), start: { page: startPos.page, pos: r2(startPos.pos), mark: !!startPos.mark }, frac: +$('frac').value, previewBars: +$('prevbars').value, noiseFloor: pager.gate && pager.gate.floor, nBars: pkg.order.length, barStart: (function () { try { return Array.prototype.map.call(pager.nominal.barStart, r2); } catch (e) { return null; } })(), slowPace: slowOn ? slowPace() : null,
+      lastRun = { app: 'v127', title: pkg.title, at: new Date().toISOString(), start: { page: startPos.page, pos: r2(startPos.pos), mark: !!startPos.mark }, frac: +$('frac').value, previewBars: +$('prevbars').value, noiseFloor: pager.gate && pager.gate.floor, nBars: pkg.order.length, barStart: (function () { try { return Array.prototype.map.call(pager.nominal.barStart, r2); } catch (e) { return null; } })(), slowPace: slowOn ? slowPace() : null,
         turns: pager.turner.events.map(function (e) { return { t: r2(e.t), kind: e.kind, from: e.from, to: e.to, pos: r2(e.pos) }; }), previews: pager.turner.previews.map(function (e) { return { t: r2(e.t), from: e.from, to: e.to, pos: r2(e.pos) }; }), shows: shows.slice(0, 400),
         trace: tr.filter(function (r, i) { return i % st === 0; }).map(function (r) { return [r2(r[0]), r2(r[1]), r2(r[2]), r[3], r2(r[4] || 0)]; }) };
     } catch (e) { lastRun = null; }
