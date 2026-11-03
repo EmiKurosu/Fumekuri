@@ -21,9 +21,12 @@
   html { overflow: hidden; }
   body { position: fixed; inset: 0; width: 100%; overflow: hidden; box-sizing: border-box; }      /* the page itself never scrolls: a touch or the pencil must not push the whole screen down */
   body { display: flex; flex-direction: column; padding: env(safe-area-inset-top) max(12px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(12px, env(safe-area-inset-left)); gap: 10px; }
-  #hint { flex: 1; min-width: 0; color: var(--dim); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #hint { color: var(--fg); font-size: 16px; font-weight: 500; line-height: 1.15; text-align: center; flex: 1 0 100%; order: 9; }      /* narrow screens: a line of its own below the title row, centred */
+  header { flex-wrap: wrap; row-gap: 2px; }
+  #hint:empty { display: none; }
+  @media (min-width: 900px) { header { position: relative; } #hint { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); flex: none; order: 0; white-space: nowrap; margin-top: 4px; } }
   header { display: flex; align-items: center; gap: 14px; padding-top: 10px; min-height: 52px; }
-  header h1 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: .02em; flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  header h1 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: .02em; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .readout { display: flex; align-items: baseline; gap: 8px; font-variant-numeric: tabular-nums; }
   .readout b { font-size: 30px; display: inline-block; font-weight: 650; line-height: 1; min-width: 2.2ch; text-align: right; }
   .readout span { color: var(--dim); font-size: 13px; }
@@ -195,7 +198,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">譜めくりくん</h1><span id="hint" aria-live="off"></span><span id="ver" style="color:var(--dim);font-size:11px">v138</span>
+  <h1 id="title">譜めくりくん</h1><span id="hint" aria-live="off"></span><span id="ver" style="color:var(--dim);font-size:11px">v139</span>
   <div class="meter" id="meter" title="マイクの音量"><i></i></div>
   <div class="readout" aria-live="off"><b id="bar" style="display:none">–</b><span id="pg" style="display:inline-block;width:5ch;text-align:right;font-variant-numeric:tabular-nums">p.–</span><span id="cf" title="追従の確かさ" style="display:inline-block;width:9.5ch;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"></span></div>
 </header>
@@ -938,7 +941,13 @@
       for (i = 0; i < m; i++) { var o = new Float64Array(12), nr = 0; for (k = 0; k < K; k++) for (q = 0; q < 12; q++) o[q] += self.perf[i * K + k][q]; for (q = 0; q < 12; q++) nr += o[q] * o[q]; nr = Math.sqrt(nr) || 1; for (q = 0; q < 12; q++) o[q] /= nr; B[i] = o; }
       var al = alignFrames(A, nA, B, m, ds); if (!al) return;
       var fsec = dtf * K, perfSec = (al.map(nA - 1) - al.map(0)) * fsec; if (!(perfSec > 5)) return;
-      var r = { pace: (nA / FPSr) / perfSec, cost: al.cost, refSec: nA / FPSr, perfSec: perfSec, K: K, al: al, fsec: fsec, f0: f0 };
+      var r = { pace: (nA / FPSr) / perfSec, cost: al.cost, refSec: nA / FPSr, perfSec: perfSec, K: K, al: al, fsec: fsec, f0: f0, i0: 0, nA: nA };
+      try {                                                    // the reference may begin with a stretch before the first note (a lead-in, a breath): the speed is measured from the first sound of the playing and the place in the reference it lines up with
+        var rm = self.perfRms, fl = self.gate && self.gate.floor || 0, th = Math.max(0.003, 30 * Math.max(fl, 1e-4)), on = -1;
+        if (rm && rm.length >= self.perf.length) { for (i = 0; i < self.perf.length; i++) if (rm[i] > th) { on = i; break; } }
+        if (on > 0) { var pi = Math.floor(on / K), lo = 0, hi = nA - 1; while (lo < hi) { var mid = (lo + hi) >> 1; if (al.map(mid) < pi) lo = mid + 1; else hi = mid; }
+          var refS2 = (nA - lo) / FPSr, perfS2 = (al.map(nA - 1) - pi) * fsec; if (lo > 0 && refS2 >= 8 && perfS2 > 5) { r.i0 = lo; r.refSec = refS2; r.perfSec = perfS2; r.pace = refS2 / perfS2; } }
+      } catch (e0) {}
       if (!best || r.cost < best.cost) best = r;
     });
     return best;
@@ -949,8 +958,8 @@
     if (!r || !r.al) return out;
     for (k = 0; k < runs.length; k++) {
       var a = Math.max(sp, runs[k][0]), b = Math.min(endPos, runs[k][1] + 1); if (b - a < 0.3) continue;
-      var fa = nom.frameOfBar(a) - r.f0, fb = nom.frameOfBar(b) - r.f0, refS = (fb - fa) / FPSr; if (!(refS >= 8) || fa < -1) continue;
-      var ps = (r.al.map(Math.min(fb, (r.refSec * FPSr) - 1)) - r.al.map(Math.max(fa, 0))) * r.fsec; if (ps > 3) out.push({ page: runs[k][2], pace: refS / ps });
+      var fa = Math.max(nom.frameOfBar(a) - r.f0, r.i0 || 0), fb = nom.frameOfBar(b) - r.f0, refS = (fb - fa) / FPSr; if (!(refS >= 8) || fa < -1) continue;
+      var ps = (r.al.map(Math.min(fb, (r.nA || (r.refSec * FPSr + (r.i0 || 0))) - 1)) - r.al.map(Math.max(fa, 0))) * r.fsec; if (ps > 3) out.push({ page: runs[k][2], pace: refS / ps });
     }
     return out;
   };
@@ -1553,9 +1562,9 @@
     var nreg = pageRegion(pl.np); if (!nreg || !imgs[nreg.img] || !imgs[nreg.img].complete) return null;
     var nw = nreg.x1 - nreg.x0, nh = nreg.y1 - nreg.y0, ns = Math.min(Wd / nw, Hd / nh), R = previewRect(pl.lab) || { x0: 0, x1: 0.5 * nw, y0: 0, y1: 0.28 * nh }, rx = Math.max(0.1 * Wd, (R.x1 - nreg.x0) * ns), ry = Math.max(0.08 * Hd, (R.y1 - nreg.y0) * ns);
     var capY = y0 + 0.5 * Hd; try { var q = mapCache[shownPage] && mapCache[shownPage].last && mapCache[shownPage].last(); if (q) capY = vY(v, 0, q.top) - 0.03 * Hd; } catch (e) {}
-    var room = Math.max(0.12 * Hd, Math.min(Hd, capY - y0)), b = Math.min(0.55 * room, 0.5 * Hd), a = Wd;      // room: from the top of the page down to just above the last line of music (the line being played): the curl stays above it
-    ns = v.s * ((reg.x1 - reg.x0) / nw);                                                                   // the next page under the curl is shown as big as the page that is being played, so that it can be read
-    return { x0: x0, y0: y0, Wd: Wd, Hd: Hd, nreg: nreg, nw: nw, nh: nh, ns: ns, a: a, b: b, room: room, ox: v.ox, oy: v.oy };
+    var room = Math.max(0.12 * Hd, Math.min(Hd, capY - y0)), b = Math.min(0.42 * room, 0.4 * Hd), a = Wd;      // room: from the top of the page down to just above the last line of music (the line being played): the curl stays above it
+    var dn = 0.85 - ry / b; if (dn > 0.2) a = Math.max(0.4 * Wd, Math.min(Wd, rx / dn));                     // the curl is only as wide as it has to be to show the first bars of the next page
+    return { x0: x0, y0: y0, Wd: Wd, Hd: Hd, nreg: nreg, nw: nw, nh: nh, ns: ns, a: a, b: b, room: room, ox: x0, oy: y0 };
   }
   function drawPeel(g, v, d) {
     var pl = peel; if (!pl || !(pl.sc > 0) || !v || (pl.pg !== undefined && pl.pg !== shownPage)) return; var gm = peelGeo(v, g.canvas, pl); if (!gm) return;
@@ -1573,7 +1582,7 @@
     sh.addColorStop(0, 'rgba(30,26,20,.55)'); sh.addColorStop(0.16, 'rgba(30,26,20,.5)'); sh.addColorStop(0.29, 'rgba(30,26,20,.32)'); sh.addColorStop(0.4, 'rgba(30,26,20,.17)'); sh.addColorStop(0.6, 'rgba(30,26,20,.05)'); sh.addColorStop(1, 'rgba(0,0,0,0)');
     g.strokeStyle = sh; g.lineWidth = sw * 2; g.lineCap = 'butt'; g.beginPath(); g.moveTo(px, py); g.quadraticCurveTo(cx, cy, qx, qy); g.stroke(); g.restore();
     // 2. the curled-over paper: pointed at the top, rounded and widest at the left end
-    var Wf = 0.3 * L; if (!peelAnim && A > 1) Wf = Math.min(Wf, Math.max(0.04 * L, (gm.room - 0.78 * B) * L / A));      // the curled paper must not reach down over the line that is being played
+    var Wf = (peelAnim ? 0.3 : 0.13) * L; if (!peelAnim && A > 1) Wf = Math.min(Wf, Math.max(0.04 * L, (gm.room - 0.78 * B) * L / A));      // the curled paper must not reach down over the line that is being played
     var T = fold(0.97), E = [qx + ux * 0.22 * L + nx * Wf, qy + uy * 0.22 * L + ny * Wf], Lb = [qx + ux * 0.05 * L + nx * 0.037 * L, qy + uy * 0.05 * L + ny * 0.037 * L], S0 = [qx - ux * 0.03 * L, qy - uy * 0.03 * L];
     function flap() {                                          // a triangle: the fold, the hollow curled edge, a hollow bottom edge that rises to a small rolled lobe at the left; the lower corner is pointed
       g.beginPath(); g.moveTo(S0[0], S0[1]); g.lineTo(qx, qy); for (var k = 1; k <= 30; k++) { var f = fold(0.97 * k / 30); g.lineTo(f[0], f[1]); }
@@ -1739,14 +1748,14 @@
   }
   function showPace(r, sl, learn) {      // slowly mode: only the tempo and which "slowly" degree is closest;  normal mode: the tempo and a button to learn it
     var box = $('pacebar'); { if (!r || r.cost > 0.45 || r.pace < 0.12 || r.pace > 3) return;
-      var p = r.pace, nn = (!window.LANG || window.LANG === 'ja') ? Math.round(p * 100) / 10 : Math.round(p * 100), txt = _t('今回の演奏のテンポ：お手本の約{n}割の速さでした。').replace('{n}', nn);
+      var p = r.pace, nn = (!window.LANG || window.LANG === 'ja') ? Math.round(p * 100) / 10 : Math.round(p * 100), txt = _t('今回の演奏のテンポ：お手本の約{n}割の速さでした。').replace('{n}', nn); if ((!window.LANG || window.LANG === 'ja') && p >= 0.95) txt = p <= 1.05 ? '今回の演奏のテンポ：お手本とほぼ同じ速さでした。' : '今回の演奏のテンポ：お手本の約' + (Math.round(p * 10) / 10) + '倍の速さ（お手本より速め）でした。';      // ('10割' is the same speed - above that, 割 is easy to misread)
       box.innerHTML = ''; var d1 = document.createElement('div'); d1.innerHTML = '<b></b>'; d1.firstChild.textContent = txt; box.appendChild(d1);
       if (sl) {
         var rec;
         if (p >= 0.85) rec = _t('お手本に近い速さです。「ゆっくり」はオフで大丈夫です。');
         else { var near = SLOWLV.reduce(function (b, v, i) { return Math.abs(Math.log(p / v)) < Math.abs(Math.log(p / SLOWLV[b])) ? i : b; }, 0); rec = (p < 0.3 ? _t('「かなり遅め」より遅い速さです。') + ' ' : '') + _t('このテンポには、「{b}」が近いです。').replace('{b}', _t(['かなり遅め', '少し遅め'][near]) + _t(['（約4割）', '（約7割）'][near])); }
         var d2 = document.createElement('div'); d2.textContent = rec; box.appendChild(d2);
-        if (r.pages && r.pages.length > 1) r.pages.forEach(function (q) { var nr = SLOWLV.reduce(function (b2, v, i) { return Math.abs(Math.log(q.pace / v)) < Math.abs(Math.log(q.pace / SLOWLV[b2])) ? i : b2; }, 0), n2 = (!window.LANG || window.LANG === 'ja') ? Math.round(q.pace * 100) / 10 : Math.round(q.pace * 100), d3 = document.createElement('div'); d3.textContent = _t('{p}ページ目：約{n}割').replace('{p}', q.page).replace('{n}', n2) + (q.pace < 0.85 ? ' → ' + _t(['かなり遅め', '少し遅め'][nr]) : ''); box.appendChild(d3); });
+        if (r.pages && r.pages.length > 1) r.pages.forEach(function (q) { var nr = SLOWLV.reduce(function (b2, v, i) { return Math.abs(Math.log(q.pace / v)) < Math.abs(Math.log(q.pace / SLOWLV[b2])) ? i : b2; }, 0), n2 = (!window.LANG || window.LANG === 'ja') ? Math.round(q.pace * 100) / 10 : Math.round(q.pace * 100), d3 = document.createElement('div'); d3.textContent = ((!window.LANG || window.LANG === 'ja') && q.pace >= 0.95 ? (q.pace <= 1.05 ? q.page + 'ページ目：ほぼ同じ速さ' : q.page + 'ページ目：約' + (Math.round(q.pace * 10) / 10) + '倍') : _t('{p}ページ目：約{n}割').replace('{p}', q.page).replace('{n}', n2)) + (q.pace < 0.85 ? ' → ' + _t(['かなり遅め', '少し遅め'][nr]) : ''); box.appendChild(d3); });
       }
       var bs = document.createElement('div'); bs.className = 'pb';
       if (sl && slowMem) { var d4 = document.createElement('div'); d4.textContent = _t('ゆっくり用に覚えた速さ：') + slowMemText(); box.insertBefore(d4, bs); }
@@ -1802,7 +1811,7 @@
   var prevRuns = [];                                           // earlier parts of the same session, kept when the follower is restarted (a tap on "here now", the slow button, ...): [{...record, endedBy}]
   function runRecord(maxPts) {
     if (!pager || !pager.trace || !pager.trace.length) return null; var tr = pager.trace, st = Math.max(1, Math.round(tr.length / maxPts)), r2 = function (v) { return Math.round(v * 100) / 100; };
-    return { app: 'v138', title: pkg.title, at: new Date().toISOString(), start: { page: startPos.page, pos: r2(startPos.pos), mark: !!startPos.mark }, frac: +$('frac').value, previewBars: +$('prevbars').value, noiseFloor: pager.gate && pager.gate.floor, nBars: pkg.order.length, onsetT: pager.turner && pager.turner.onsetT, rmsMax: pager.turner && pager.turner.rmsMax, barStart: (function () { try { return Array.prototype.map.call(pager.nominal.barStart, r2); } catch (e) { return null; } })(), slowPace: slowOn ? slowPace() : null,
+    return { app: 'v139', title: pkg.title, at: new Date().toISOString(), start: { page: startPos.page, pos: r2(startPos.pos), mark: !!startPos.mark }, frac: +$('frac').value, previewBars: +$('prevbars').value, noiseFloor: pager.gate && pager.gate.floor, nBars: pkg.order.length, onsetT: pager.turner && pager.turner.onsetT, rmsMax: pager.turner && pager.turner.rmsMax, barStart: (function () { try { return Array.prototype.map.call(pager.nominal.barStart, r2); } catch (e) { return null; } })(), slowPace: slowOn ? slowPace() : null,
       turns: pager.turner.events.map(function (e) { return { t: r2(e.t), kind: e.kind, from: e.from, to: e.to, pos: r2(e.pos) }; }), previews: pager.turner.previews.map(function (e) { return { t: r2(e.t), from: e.from, to: e.to, pos: r2(e.pos) }; }), shows: shows.slice(0, 400),
       trace: tr.filter(function (r, i) { return i % st === 0; }).map(function (r) { return [r2(r[0]), r2(r[1]), r2(r[2]), r[3], r2(r[4] || 0)]; }) };
   }
