@@ -66,9 +66,10 @@
   .settings button:not(.closebtn) { text-align: center; font-size: 15px; min-height: 44px; }
   .settings label.sl > span:first-child { margin-bottom: -9px; } .settings label.sl2 { margin-top: 16px; }
   .settings small { overflow-wrap: anywhere; }
-  .settings { padding-top: 74px; }
+  .settings #closesettings { position: sticky; top: auto; right: auto; bottom: 0; justify-self: end; flex: none; box-shadow: 0 2px 10px rgba(0,0,0,.3); }
   .closebtn { position: absolute; top: 14px; right: 14px; width: 50px; min-height: 50px; padding: 0; border-radius: 25px; font-size: 32px; line-height: 1; display: grid; place-items: center; }
   .settings label { display: grid; gap: 4px; font-size: 14px; }
+  .settings #recbtn.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
   .settings label span { display: flex; justify-content: space-between; color: var(--dim); }
   .settings input[type=range] { width: 100%; min-height: 32px; accent-color: var(--accent); }
   .settings small { color: var(--dim); }
@@ -164,7 +165,7 @@
   body.honban #fsback, body.honban #startreset, body.honban #fsstart, body.honban #libbtn, body.honban details, body.honban #helpbtn, body.honban #filelab, body.honban #fsbtn, body.honban #prepbtn, body.honban #inkbar, body.honban #adjt, body.honban #geot { display: none !important; }
   #lib { position: fixed; inset: 0; z-index: 20; background: var(--bg); overflow-y: auto; padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
   #lib[hidden] { display: none; }
-  #lib .box { max-width: 760px; margin: 0 auto; display: grid; gap: 14px; padding-top: 40px; }
+  #lib .box { max-width: 760px; margin: 0 auto; display: grid; gap: 14px; padding-top: 40px; padding-bottom: 96px; }
   #lib h2 { font-size: 18px; margin: 4px 0 0; } #lib small { color: var(--dim); }
   #lib .sortrow { display: flex; align-items: center; gap: 10px; color: var(--dim); font-size: 14px; } #lib .sortrow select { width: auto; min-height: 40px; }
   #liblist { display: grid; gap: 10px; }
@@ -182,7 +183,7 @@
   #install #installskip { justify-self: start; min-height: 48px; padding: 0 22px; font-size: 17px; font-weight: 600; background: var(--accent); color: #fff; border-color: var(--accent); }
   #help { position: fixed; inset: 0; z-index: 44; background: var(--bg); overflow-y: auto; padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
   #help[hidden] { display: none; }
-  #help .box { max-width: 700px; margin: 0 auto; padding-top: 40px; line-height: 1.7; } #help h2 { font-size: 20px; margin: 22px 0 6px; } #help h3 { font-size: 16px; margin: 16px 0 2px; } #help p, #help ol { margin: 0; } #help ol { padding-left: 1.3em; }
+  #help .box { max-width: 700px; margin: 0 auto; padding-top: 40px; padding-bottom: 96px; line-height: 1.7; } #help h2 { font-size: 20px; margin: 22px 0 6px; } #help h3 { font-size: 16px; margin: 16px 0 2px; } #help p, #help ol { margin: 0; } #help ol { padding-left: 1.3em; }
   #bk { position: fixed; inset: 0; z-index: 35; background: rgba(20,22,27,.55); display: grid; place-items: center; padding: 20px; }
   #bk[hidden] { display: none; }
   #bk .box { background: var(--bg); border-radius: 16px; padding: 22px; max-width: 520px; display: grid; gap: 12px; line-height: 1.7; } #bk h2 { font-size: 19px; margin: 0; } #bk p { margin: 0; }
@@ -233,7 +234,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">pagic</h1><span id="pg" style="flex:none;color:var(--dim);font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap">p.–</span><span id="hint" aria-live="off"></span><span id="ver" style="color:var(--dim);font-size:11px">v162</span><span style="flex:1"></span>
+  <h1 id="title">pagic</h1><span id="pg" style="flex:none;color:var(--dim);font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap">p.–</span><span id="hint" aria-live="off"></span><span id="ver" style="color:var(--dim);font-size:11px">v163</span><span style="flex:1"></span>
   <span id="snd" style="flex:none;min-width:15ch;text-align:right;font-size:13px;color:var(--dim);white-space:nowrap"></span>
   <div class="readout" aria-live="off"><b id="bar" style="display:none">–</b></div>
 </header>
@@ -298,21 +299,21 @@
   <input type="file" id="score" accept=".json,application/json" hidden><button id="libbtn" type="button" aria-label="Songs" title="Songs" class="ib"><svg viewBox="1.6 1.8 20.8 20.4" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 6.6Q7.2 2.4 11.8 5.6V16Q7.2 13.2 2.6 15.6Z"/><path d="M21.4 6.6Q16.8 2.4 12.2 5.6V16Q16.8 13.2 21.4 15.6Z"/><path d="M2.6 15.6L3.3 20.8Q7.6 18 11.5 20.8H12.5Q16.4 18 20.7 20.8L21.4 15.6"/><path d="M3 18.2Q7.4 15.4 11.8 18.6M21 18.2Q16.6 15.4 12.2 18.6"/><path d="M5.2 7.9Q7.3 6.5 9.6 7.5M5.2 10.1Q7.3 8.7 9.6 9.7M5.2 12.3Q7.3 10.9 9.6 11.9M18.8 7.9Q16.7 6.5 14.4 7.5M18.8 10.1Q16.7 8.7 14.4 9.7M18.8 12.3Q16.7 10.9 14.4 11.9"/></svg></button>
   <details><summary aria-label="Settings" title="Settings"><svg viewBox="0.9 0.9 22.2 22.2" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></summary>
     <div class="settings">
-      <button type="button" class="closebtn" id="closesettings" aria-label="設定を閉じる">×</button>
       <label class="sl"><span>めくる位置（最終小節の中）<b id="fracv">70%</b></span><input type="range" id="frac" min="20" max="90" step="5" value="70"><span style="display:flex;justify-content:space-between;font-size:12px;color:var(--dim);margin-top:-8px;line-height:1"><span>早め</span><span>遅め</span></span></label>
       <label class="sl sl2"><span>ページのめくり始め<b id="prevv"></b></span><input type="range" id="prevbars" min="0" max="4" step="1" value="2"></label>
       <div id="tempoblock"><small id="tempoinfo" style="white-space:pre-line"></small>
       <button type="button" id="learnreset">覚えたテンポを消す</button></div>
-      <label><span>言語 / Language / Sprache</span><select id="langsel"><option value="auto">Auto</option><option value="ja">日本語</option><option value="en">English</option><option value="de">Deutsch</option></select></label>
+      <button type="button" id="recbtn" aria-pressed="false">演奏を録音する</button><input type="checkbox" id="recon" hidden>
+      <div id="recblock" style="display:grid;gap:8px"><small id="recsaved"></small><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" id="recdel">録音を消す</button><button type="button" id="recexp">録音を書き出す</button></div></div>
       <button type="button" id="diagbtn">動作の記録を書き出す</button>
-      <label style="display:flex;align-items:center;gap:10px;font-size:15px"><input type="checkbox" id="recon" style="width:24px;height:24px;flex:none"><span>演奏を録音する</span></label>
-      <div id="recblock" style="display:grid;gap:8px"><small id="recsaved"></small><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" id="recexp">録音を書き出す</button><button type="button" id="recdel">録音を消す</button></div></div>
       <div id="filemove" style="display:grid;gap:4px"></div>
+      <label><span>言語 / Language / Sprache</span><select id="langsel"><option value="auto">Auto</option><option value="ja">日本語</option><option value="en">English</option><option value="de">Deutsch</option></select></label>
       <div id="advtempo" style="display:none">
       <button type="button" id="learnbtn" disabled>通して弾いて覚える（上級）</button>
       <button type="button" id="learnfilebtn">録音ファイルから覚える（上級）</button><input type="file" id="learnfile" accept="audio/*" hidden>
       </div>
       <div id="log"></div>
+      <button type="button" class="closebtn" id="closesettings" aria-label="設定を閉じる">×</button>
     </div>
   </details>
   <button type="button" id="helpbtn" class="ib" aria-label="Help" title="Help"><svg viewBox="0.9 0.9 22.2 22.2" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.2 9.3a2.9 2.9 0 0 1 5.6 1c0 1.9-2.8 2.4-2.8 4.2"/><circle cx="12" cy="17.6" r=".6" fill="currentColor"/></svg></button>
@@ -328,7 +329,7 @@
   </div>
 </div>
 <div id="lib" hidden>
-  <button type="button" class="closebtn" id="libclose" aria-label="Close" style="position:fixed;top:max(24px,env(safe-area-inset-top));right:max(24px,env(safe-area-inset-right));z-index:25">×</button>
+  <button type="button" class="closebtn" id="libclose" aria-label="Close" style="position:fixed;top:auto;bottom:max(24px,env(safe-area-inset-bottom));right:max(24px,env(safe-area-inset-right));z-index:25;box-shadow:0 2px 12px rgba(0,0,0,.35)">×</button>
   <div class="box">
     <h2>曲の一覧</h2>
     <label class="sortrow"><span>並び順</span><select id="libsort"><option value="new">新しい順</option><option value="old">古い順</option><option value="name">名前順</option><option value="open">最近開いた順</option></select></label>
@@ -338,7 +339,7 @@
   </div>
 </div>
 <div id="help" hidden>
-  <button type="button" class="closebtn" id="helpclose" aria-label="Close" style="position:fixed;top:max(24px,env(safe-area-inset-top));right:max(24px,env(safe-area-inset-right));z-index:45">×</button>
+  <button type="button" class="closebtn" id="helpclose" aria-label="Close" style="position:fixed;top:auto;bottom:max(24px,env(safe-area-inset-bottom));right:max(24px,env(safe-area-inset-right));z-index:45;box-shadow:0 2px 12px rgba(0,0,0,.35)">×</button>
   <div class="box">
     <h2>使い方</h2>
     <h3>基本</h3>
@@ -2096,7 +2097,7 @@
   var prevRuns = [];                                           // earlier parts of the same session, kept when the follower is restarted (a tap on "here now", the slow button, ...): [{...record, endedBy}]
   function runRecord(maxPts) {
     if (!pager || !pager.trace || !pager.trace.length) return null; var tr = pager.trace, st = Math.max(1, Math.round(tr.length / maxPts)), r2 = function (v) { return Math.round(v * 100) / 100; };
-    return { app: 'v162', title: pkg.title, at: new Date().toISOString(), start: { page: startPos.page, pos: r2(startPos.pos), mark: !!startPos.mark }, frac: +$('frac').value, previewBars: +$('prevbars').value, noiseFloor: pager.gate && pager.gate.floor, nBars: pkg.order.length, onsetT: pager.turner && pager.turner.onsetT, rmsMax: pager.turner && pager.turner.rmsMax, barStart: (function () { try { return Array.prototype.map.call(pager.nominal.barStart, r2); } catch (e) { return null; } })(), slowPace: slowOn ? slowPace() : null, tempoMode: tmode, slowOn: !!slowOn, gaps: micGaps.slice(),
+    return { app: 'v163', title: pkg.title, at: new Date().toISOString(), start: { page: startPos.page, pos: r2(startPos.pos), mark: !!startPos.mark }, frac: +$('frac').value, previewBars: +$('prevbars').value, noiseFloor: pager.gate && pager.gate.floor, nBars: pkg.order.length, onsetT: pager.turner && pager.turner.onsetT, rmsMax: pager.turner && pager.turner.rmsMax, barStart: (function () { try { return Array.prototype.map.call(pager.nominal.barStart, r2); } catch (e) { return null; } })(), slowPace: slowOn ? slowPace() : null, tempoMode: tmode, slowOn: !!slowOn, gaps: micGaps.slice(),
       turns: pager.turner.events.map(function (e) { return { t: r2(e.t), kind: e.kind, from: e.from, to: e.to, pos: r2(e.pos) }; }), previews: pager.turner.previews.map(function (e) { return { t: r2(e.t), from: e.from, to: e.to, pos: r2(e.pos) }; }), shows: shows.slice(0, 400),
       trace: tr.filter(function (r, i) { return i % st === 0; }).map(function (r) { return [r2(r[0]), r2(r[1]), r2(r[2]), r[3], r2(r[4] || 0)]; }) };
   }
@@ -2323,7 +2324,7 @@
         if (lastTap && now - lastTap.t < 420 && Math.hypot(cp[0] - lastTap.x, cp[1] - lastTap.y) < 60 * cp[2]) { lastTap = null; var ip = vInv(view, cp[0], cp[1]); setStart(ip[0], ip[1]); return; }
         lastTap = { t: now, x: cp[0], y: cp[1] }; return;
       }
-      if (Date.now() - st < 900 && Math.abs(dx) > 60 && Math.abs(dx) > 1.6 * Math.abs(dy)) { var nw = Date.now(); if (nw - swT < 900 || peelAnim) return; swT = nw; manual(dx < 0 ? 1 : -1); }       /* a second swipe right after one is ignored: the page may only be slow to appear, and two swipes must not skip a page */
+      if (Date.now() - st < 900 && Math.abs(dx) > 60 && Math.abs(dx) > 1.6 * Math.abs(dy)) { if (peelAnim) return; manual(dx < 0 ? 1 : -1); }       /* swipes may follow each other without any pause */
     }, { passive: true });
     var pz = null, lastTap = null, lastTouchT = 0, swT = 0;
     m.addEventListener('click', function (e) { if (ink.on || !view) return; var cp = cpt(e); if (twoUpOn && cp[0] > viewW($('page'))) return; if (Date.now() - lastTouchT > 700 && hereArm) { hereArm = false; var hp = vInv(view, cp[0], cp[1]); setStart(hp[0], hp[1]); return; } if (Date.now() - lastTouchT > 700) { var rh = repHit(cp[0], cp[1], cp[2]); if (rh) { repBtnTap(rh); return; } } if (hitFlagX(cp[0], cp[1], cp[2])) clearFlag(); });
@@ -3367,7 +3368,7 @@
     d.addEventListener('pointerup', end); d.addEventListener('pointercancel', end);
   })();
   (function () {                                    // crop frame: drag the corners / edges, drag inside to move it, pinch to make it smaller or larger
-    var o = $('geoov'), P = {}, st = null, raf = 0, MIN = 0.12;
+    var o = $('geoov'), P = {}, PT = {}, st = null, raf = 0, MIN = 0.12;
     function pt(e) { var c = $('page'), r = c.getBoundingClientRect(), d = c.width / r.width; return [(e.clientX - r.left) * d, (e.clientY - r.top) * d, d]; }
     function begin() {
       var ks = Object.keys(P), g = geo[shownPage] = geo[shownPage] || { q: 0, f: 0, l: 0, t: 0, r: 0, b: 0, v: 0, h: 0 };
@@ -3385,24 +3386,32 @@
       if (st.mode === 'pinch') {
         if (ks.length < 2) return; var a = P[ks[0]], b = P[ks[1]], k = (Math.hypot(a[0] - b[0], a[1] - b[1]) || 1) / st.d0;
         var w0 = 1 - o0.l - o0.r, h0 = 1 - o0.t - o0.b, w = Math.max(MIN, Math.min(1 + 2 * GMARG, w0 / k)), h = Math.max(MIN, Math.min(1 + 2 * GMARG, h0 / k)), cx = o0.l + w0 / 2, cy = o0.t + h0 / 2;
-        var l = Math.max(-GMARG, Math.min(1 + GMARG - w, cx - w / 2)), t = Math.max(-GMARG, Math.min(1 + GMARG - h, cy - h / 2)); g.l = l; g.r = 1 - w - l; g.t = t; g.b = 1 - h - t;
+        var l = Math.max(-GMARG, -w / 2, Math.min(1 + GMARG - w, 1 - w / 2, cx - w / 2)), t = Math.max(-GMARG, -h / 2, Math.min(1 + GMARG - h, 1 - h / 2, cy - h / 2)); g.l = l; g.r = 1 - w - l; g.t = t; g.b = 1 - h - t;
       } else {
         var p = P[ks[0]]; if (!p) return; var dx = (p[0] - st.x) / sx, dy = (p[1] - st.y) / sy;
-        if (st.mode === 'move') { var w1 = 1 - o0.l - o0.r, h1 = 1 - o0.t - o0.b, l1 = Math.max(-GMARG, Math.min(1 + GMARG - w1, o0.l + dx)), t1 = Math.max(-GMARG, Math.min(1 + GMARG - h1, o0.t + dy)); g.l = l1; g.r = 1 - w1 - l1; g.t = t1; g.b = 1 - h1 - t1; }
+        if (st.mode === 'move') { var w1 = 1 - o0.l - o0.r, h1 = 1 - o0.t - o0.b, l1 = Math.max(-GMARG, -w1 / 2, Math.min(1 + GMARG - w1, 1 - w1 / 2, o0.l + dx)), t1 = Math.max(-GMARG, -h1 / 2, Math.min(1 + GMARG - h1, 1 - h1 / 2, o0.t + dy));      /* the middle of the frame always stays on the page, so that the frame cannot be lost outside */ g.l = l1; g.r = 1 - w1 - l1; g.t = t1; g.b = 1 - h1 - t1; }
         else { var m = st.mode; if (m.l) g.l = Math.max(-GMARG, Math.min(1 - o0.r - MIN, o0.l + dx)); if (m.r) g.r = Math.max(-GMARG, Math.min(1 - o0.l - MIN, o0.r - dx)); if (m.t) g.t = Math.max(-GMARG, Math.min(1 - o0.b - MIN, o0.t + dy)); if (m.b) g.b = Math.max(-GMARG, Math.min(1 - o0.t - MIN, o0.b - dy)); }
       }
       if (!raf) raf = requestAnimationFrame(function () { raf = 0; drawPage(null, 0); });
     }
-    o.addEventListener('pointerdown', function (e) { e.stopPropagation(); e.preventDefault(); try { o.setPointerCapture(e.pointerId); } catch (x) {} P[e.pointerId] = pt(e); begin(); });
-    o.addEventListener('pointermove', function (e) { e.stopPropagation(); if (!P[e.pointerId]) return; P[e.pointerId] = pt(e); move(); });
-    function up(e) { e.stopPropagation(); if (!P[e.pointerId]) return; delete P[e.pointerId]; var had = !!st; begin(); if (had && !Object.keys(P).length) { viewSave(); geoSave(); geoUI(); drawPage(null, 0); } }
+    function stale(id) { if (P[id]) { delete P[id]; delete PT[id]; } }
+    o.addEventListener('pointerdown', function (e) { e.stopPropagation(); e.preventDefault(); var nw = Date.now(); for (var k in P) if (nw - (PT[k] || 0) > 1500) stale(k);      /* a finger whose "lifted" message never arrived must not stay behind as a ghost: it would turn every drag into a pinch */
+      try { o.setPointerCapture(e.pointerId); } catch (x) {} P[e.pointerId] = pt(e); PT[e.pointerId] = nw; begin(); });
+    ['lostpointercapture'].forEach(function (n) { o.addEventListener(n, function (e) { if (P[e.pointerId]) { delete P[e.pointerId]; delete PT[e.pointerId]; st = null; } }); });
+    document.addEventListener('pointerup', function (e) { if (P[e.pointerId]) { delete P[e.pointerId]; delete PT[e.pointerId]; if (!Object.keys(P).length) st = null; } }, true);
+    document.addEventListener('pointercancel', function (e) { if (P[e.pointerId]) { delete P[e.pointerId]; delete PT[e.pointerId]; if (!Object.keys(P).length) st = null; } }, true);
+    window.geoGhostClear = function () { P = {}; PT = {}; st = null; };
+    $('geot').addEventListener('click', window.geoGhostClear);
+    o.addEventListener('pointermove', function (e) { e.stopPropagation(); if (!P[e.pointerId]) return; P[e.pointerId] = pt(e); PT[e.pointerId] = Date.now(); move(); });
+    function up(e) { e.stopPropagation(); if (!P[e.pointerId]) return; delete P[e.pointerId]; delete PT[e.pointerId]; var had = !!st; begin(); if (had && !Object.keys(P).length) { viewSave(); geoSave(); geoUI(); drawPage(null, 0); } }
     o.addEventListener('pointerup', up); o.addEventListener('pointercancel', up);
     ['touchstart', 'touchmove', 'touchend', 'click', 'dblclick'].forEach(function (n) { o.addEventListener(n, function (e) { e.stopPropagation(); }, { passive: false }); });
   })();
-  $('georeset').onclick = function () { delete geo[shownPage]; delete adj[shownPage]; viewSave(); geoUI(); geoSave(); drawPage(null, 0); };
-  $('georesetall').onclick = function () { geo = {}; adj = {}; viewSave(); geoUI(); geoSave(); drawPage(null, 0); toast(_t('全ページをもとに戻しました')); };
+  $('georeset').onclick = function () { geoGhostClear(); delete geo[shownPage]; delete adj[shownPage]; viewSave(); geoUI(); geoSave(); drawPage(null, 0); };
+  $('georesetall').onclick = function () { geoGhostClear(); geo = {}; adj = {}; viewSave(); geoUI(); geoSave(); drawPage(null, 0); toast(_t('全ページをもとに戻しました')); };
   $('geoapply').onclick = function () { $('pgeo').hidden = true; geoUI(); paUI(); drawPage(null, 0); };       // the trimming is already in effect: this just puts the controls away
-  $('geot').onclick = function () { $('pgeo').hidden = !$('pgeo').hidden; $('padj').hidden = true; geoUI(); paUI(); drawPage(null, 0); };
+  $('geot').onclick = function () { var gq = geo[shownPage]; if (gq && (gq.l + (1 - gq.l - gq.r) / 2 < 0 || gq.l + (1 - gq.l - gq.r) / 2 > 1 || gq.t + (1 - gq.t - gq.b) / 2 < 0 || gq.t + (1 - gq.t - gq.b) / 2 > 1)) { gq.l = gq.r = gq.t = gq.b = 0; geoSave(); }      /* a frame that was lost outside the page is put back */
+  $('pgeo').hidden = !$('pgeo').hidden; $('padj').hidden = true; geoUI(); paUI(); drawPage(null, 0); };
   var paRaf = 0;
   ['b', 'c', 't'].forEach(function (k) {
     $('padj' + k).oninput = function () {
@@ -3549,7 +3558,9 @@
   /* ---------- recording of the playing (practice only; one saved recording, overwritten only when the player says so) ---------- */
   var recOn = false; try { recOn = localStorage.getItem('rec') === '1'; } catch (e) {}
   var rec = null, recPend = null;
-  $('recon').checked = recOn; $('recon').onchange = function () { recOn = this.checked; try { localStorage.setItem('rec', recOn ? '1' : '0'); } catch (e) {} };
+  function recBtnShow() { $('recbtn').classList.toggle('on', recOn); $('recbtn').setAttribute('aria-pressed', recOn ? 'true' : 'false'); }
+  $('recon').checked = recOn; recBtnShow(); $('recon').onchange = function () { recOn = this.checked; try { localStorage.setItem('rec', recOn ? '1' : '0'); } catch (e) {} recBtnShow(); };
+  $('recbtn').onclick = function () { $('recon').checked = !$('recon').checked; $('recon').onchange(); };
   $('filemove').appendChild($('filelab'));
   function recMB(n) { return (Math.round(n / 1048576 * 10) / 10).toFixed(1); }
   function recDate(t) { var d = new Date(t), z = function (x) { return (x < 10 ? '0' : '') + x; }; return d.getFullYear() + '/' + z(d.getMonth() + 1) + '/' + z(d.getDate()) + ' ' + z(d.getHours()) + ':' + z(d.getMinutes()); }
