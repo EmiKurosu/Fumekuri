@@ -234,7 +234,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">pagic</h1><span id="pg" style="flex:none;color:var(--dim);font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap">p.–</span><span id="hint" aria-live="off"></span><span id="ver" style="color:var(--dim);font-size:11px">v166</span><span style="flex:1"></span>
+  <h1 id="title">pagic</h1><span id="pg" style="flex:none;color:var(--dim);font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap">p.–</span><span id="hint" aria-live="off"></span><span id="ver" style="color:var(--dim);font-size:11px">v167</span><span style="flex:1"></span>
   <span id="snd" style="flex:none;min-width:15ch;text-align:right;font-size:13px;color:var(--dim);white-space:nowrap"></span>
   <div class="readout" aria-live="off"><b id="bar" style="display:none">–</b></div>
 </header>
@@ -2114,7 +2114,7 @@
   var prevRuns = [];                                           // earlier parts of the same session, kept when the follower is restarted (a tap on "here now", the slow button, ...): [{...record, endedBy}]
   function runRecord(maxPts) {
     if (!pager || !pager.trace || !pager.trace.length) return null; var tr = pager.trace, st = Math.max(1, Math.round(tr.length / maxPts)), r2 = function (v) { return Math.round(v * 100) / 100; };
-    return { app: 'v166', title: pkg.title, at: new Date().toISOString(), start: { page: startPos.page, pos: r2(startPos.pos), mark: !!startPos.mark }, frac: +$('frac').value, previewBars: +$('prevbars').value, noiseFloor: pager.gate && pager.gate.floor, nBars: pkg.order.length, onsetT: pager.turner && pager.turner.onsetT, rmsMax: pager.turner && pager.turner.rmsMax, barStart: (function () { try { return Array.prototype.map.call(pager.nominal.barStart, r2); } catch (e) { return null; } })(), slowPace: slowOn ? slowPace() : null, tempoMode: tmode, slowOn: !!slowOn, gaps: micGaps.slice(),
+    return { app: 'v167', title: pkg.title, at: new Date().toISOString(), start: { page: startPos.page, pos: r2(startPos.pos), mark: !!startPos.mark }, frac: +$('frac').value, previewBars: +$('prevbars').value, noiseFloor: pager.gate && pager.gate.floor, nBars: pkg.order.length, onsetT: pager.turner && pager.turner.onsetT, rmsMax: pager.turner && pager.turner.rmsMax, barStart: (function () { try { return Array.prototype.map.call(pager.nominal.barStart, r2); } catch (e) { return null; } })(), slowPace: slowOn ? slowPace() : null, tempoMode: tmode, slowOn: !!slowOn, gaps: micGaps.slice(),
       turns: pager.turner.events.map(function (e) { return { t: r2(e.t), kind: e.kind, from: e.from, to: e.to, pos: r2(e.pos) }; }), previews: pager.turner.previews.map(function (e) { return { t: r2(e.t), from: e.from, to: e.to, pos: r2(e.pos) }; }), shows: shows.slice(0, 400),
       trace: tr.filter(function (r, i) { return i % st === 0; }).map(function (r) { return [r2(r[0]), r2(r[1]), r2(r[2]), r[3], r2(r[4] || 0)]; }) };
   }
@@ -2210,7 +2210,7 @@
     pkg = Song.effective(pkgSrc, repOff); refCache = null; mapCache = {}; pvRect = {}; pager = null; tempo = null; slowMem = null; slowMemLoad();
     maxPage = Math.max.apply(null, Object.keys(pkg.bar_page).map(function (k) { return pkg.bar_page[k]; }));
     var mk = startPos.mark; if (mk) { var sp = startFromTap(mk.page, mk.x, mk.y); startPos = { page: mk.page, pos: sp === null || sp === undefined ? 0 : sp, mark: mk }; } else startPos = { page: pkg.bar_page[pkg.order[0]], pos: 0, mark: null };
-    showTempoInfo(); store.getKey(sig(), function (t) { if (t && pkg) { try { tempo = JSON.parse(t); if (tempo.barSec.length !== pkg.order.length) tempo = null; } catch (e) { tempo = null; } showTempoInfo(); } });
+    showTempoInfo(); store.getKey(sig(), function (t0) { var go = function (t) { if (t && pkg) { try { tempo = JSON.parse(t); if (tempo.barSec.length !== pkg.order.length) tempo = null; } catch (e) { tempo = null; } showTempoInfo(); } }; if (t0) go(t0); else store.getKey(sigOld(), go); });
     drawPage(null, 0);
   }
   function repDelete(id) {
@@ -2393,7 +2393,8 @@
 
 
   /* ---------- learn the tempo from one straight play-through ---------- */
-  function sig() { if (!pkg) return 'tempo:'; return 'tempo:' + (pkg.title || '') + ':' + pkg.order.length + ':' + pkg.T; }
+  function sig() { if (!pkg) return 'tempo:'; return 'tempo:' + (pkg.title || '') + ':' + pkg.order.length; }      /* no length in the key: re-learning a page changes it and used to lose the learned tempo */
+  function sigOld() { return 'tempo:' + (pkg.title || '') + ':' + pkg.order.length + ':' + pkg.T; }
   function slowKey() { return sig() + ':slow'; }
   function slowMemLoad() { var k = slowKey(); store.getKey(k, function (t) { if (k !== slowKey()) return; slowMem = null; try { if (t) { var m = JSON.parse(t); if (m && m.pages && Object.keys(m.pages).length) slowMem = m; } } catch (e) {} showTempoInfo(); }); }
   function slowMemText() { if (!slowMem) return ''; var ja = !window.LANG || window.LANG === 'ja'; return Object.keys(slowMem.pages).sort(function (a, b) { return a - b; }).map(function (p) { return ja ? p + 'ページ目：約' + (+slowMem.pages[p]).toFixed(2) + '倍' : _t('{p}ページ目：約{n}割').replace('{p}', p).replace('{n}', Math.round(slowMem.pages[p] * 100)); }).join(' / '); }
@@ -3581,7 +3582,7 @@
     tempo = null; slowMem = null; slowMemLoad(); $('learnbtn').disabled = false; showTempoInfo(); inkLoad(); viewLoad(); paLoad(); geoLoad();
     if (ud && save) { var ks = Object.keys(ud), lf = ks.length, nn = p.nkey || p.order.length; ks.forEach(function (pf) { store.putKey(pf + p.title + ':' + nn, ud[pf], function () { if (--lf === 0) { inkLoad(); viewLoad(); paLoad(); geoLoad(); } }); }); }       // handwriting etc. that came with a backup file
     tmode = 'single'; store.getKey('mode:' + (p.title || '') + ':' + (p.nkey || p.order.length), function (m) { if (pkg === p || (pkg && pkg.title === p.title)) tmode = m === 'wide' ? 'wide' : 'single'; });
-    store.getKey(sig(), function (t) { if (t) { try { tempo = JSON.parse(t); if (tempo.barSec.length !== p.order.length) tempo = null; } catch (e) { tempo = null; } showTempoInfo(); } });
+    store.getKey(sig(), function (t0) { var go = function (t) { if (t) { try { tempo = JSON.parse(t); if (tempo.barSec.length !== p.order.length) tempo = null; } catch (e) { tempo = null; } showTempoInfo(); } }; if (t0) go(t0); else store.getKey(sigOld(), go); });
     if (!tickOn) { tickOn = true; requestAnimationFrame(tick); }
     nextPrep();
   }
@@ -3635,7 +3636,7 @@
     store.getKey('rec:last', function (o) {
       if (!o || !o.buf) { toast(_t('まだ録音がありません')); return; }
       var base = 'pagic-rec', ext =      /* always the same file name: the iPad then asks whether to replace the earlier file (the date and the title are inside the record file) */ /mp4/.test(o.mime) ? 'm4a' : /webm/.test(o.mime) ? 'webm' : 'audio', fs = [];
-      try { fs.push(new File([o.buf], base + '.' + ext, { type: o.mime })); if (o.log) fs.push(new File([o.log], base + '.json', { type: 'application/json' })); } catch (e) { toast(_t('保存できませんでした')); return; }
+      try { fs.push(new File([o.buf], base + '.' + ext, { type: o.mime })); } catch (e) { toast(_t('保存できませんでした')); return; }      /* ONE file only: the iPad asks "replace?" for a single file, but not when two files are saved together */
       if (navigator.canShare && navigator.canShare({ files: fs })) { navigator.share({ files: fs }).catch(function () {}); return; }
       fs.forEach(function (f, i) { setTimeout(function () { var u = URL.createObjectURL(f), a = document.createElement('a'); a.href = u; a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 5000); }, i * 600); });
     });
