@@ -23,6 +23,7 @@
   body { display: flex; flex-direction: column; padding: env(safe-area-inset-top) max(12px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(12px, env(safe-area-inset-left)); gap: 10px; }
   #hint { color: var(--fg); font-size: 16px; font-weight: 500; line-height: 1.15; text-align: center; flex: 1 0 100%; order: 9; }      /* narrow screens: a line of its own below the title row, centred */
   header { flex-wrap: wrap; row-gap: 2px; }
+  header #prepbtn { flex: none; padding: 0 10px; font-size: 13px; min-height: 36px; opacity: .75; }
   #hint:empty { display: none; }
   @media (min-width: 900px) { header { position: relative; } #hint { position: absolute; left: 50%; top: 50%; transform: translateY(-50%); flex: none; order: 0; white-space: nowrap; margin-top: 4px; } header.hint2 #hint { position: static; transform: none; flex: 1 0 100%; order: 9; white-space: normal; margin-top: 0; left: auto; } }      /* wide screens: the hint stands to the right of the title; if it does not fit there (a long title), it gets a second line (fitHint) */
   header { display: flex; align-items: center; gap: 14px; padding-top: 10px; min-height: 52px; }
@@ -235,9 +236,10 @@
 </head>
 <body>
 <header>
-  <h1 id="title">pagic</h1><span id="pg" style="flex:none;color:var(--dim);font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap">p.–</span><span id="hint" aria-live="off"></span><span id="ver" style="color:var(--dim);font-size:11px">v180</span><span style="flex:1"></span>
+  <h1 id="title">pagic</h1><span id="pg" style="flex:none;color:var(--dim);font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap">p.–</span><span id="hint" aria-live="off"></span><span id="ver" style="color:var(--dim);font-size:11px">v181</span><span style="flex:1"></span>
   <span id="snd" style="flex:none;min-width:15ch;text-align:right;font-size:13px;color:var(--dim);white-space:nowrap"></span>
   <div class="readout" aria-live="off"><b id="bar" style="display:none">–</b></div>
+  <button id="prepbtn" type="button">本番モード</button>
 </header>
 <main>
   <canvas id="page"></canvas><canvas id="inkov"></canvas><div id="geoov" hidden></div>
@@ -296,7 +298,7 @@
   <button type="button" id="fsbtn" class="ib" aria-label="Full screen" title="Full screen"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
   <button id="go" disabled>弾き始める</button><button type="button" id="slowbtn" class="ib" aria-label="ゆっくり弾く" title="ゆっくり弾く" style="font-size:13px;font-weight:700;padding:0 10px;width:auto">ゆっくり</button><span class="slvbox" hidden><button type="button" class="slv" data-lv="0">かなり遅め</button><button type="button" class="slv" data-lv="1">少し遅め</button></span><button type="button" id="tpause" class="ib" aria-label="Pause" title="Pause" hidden><svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><path d="M7 4.5h3.4v15H7zM13.6 4.5H17v15h-3.4z"/></svg></button><button type="button" id="tplay" class="ib" aria-label="Resume" title="Resume" hidden><svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><path d="M7 4.5v15L19.5 12z"/></svg></button><button type="button" id="startreset" class="ib" aria-label="Start from the beginning" title="Start from the beginning"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M4.5 4h2.8v16H4.5zM10 4.5v15L21.5 12z"/></svg></button>
   <span class="spacer"></span>
-  <div class="cfw" id="cfwrap" title="追従の確かさ"><span class="cfl">追従</span><div class="meter cfb"><i></i></div><span class="cfn"></span></div><button id="prepbtn" type="button">本番モード</button><button type="button" id="honbanx" hidden>本番を終える（長押し）</button><label id="filelab" style="color:var(--dim);font-size:13px"><input type="file" id="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.mp4,.mov" hidden><input type="file" id="filelib" accept="video/*" hidden><button id="filebtn" type="button">録音で試す</button></label>
+  <div class="cfw" id="cfwrap" title="追従の確かさ"><span class="cfl">追従</span><div class="meter cfb"><i></i></div><span class="cfn"></span></div><button type="button" id="honbanx" hidden>本番を終える（長押し）</button><label id="filelab" style="color:var(--dim);font-size:13px"><input type="file" id="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.mp4,.mov" hidden><input type="file" id="filelib" accept="video/*" hidden><button id="filebtn" type="button">録音で試す</button></label>
   <input type="file" id="score" hidden><button id="libbtn" type="button" aria-label="Songs" title="Songs" class="ib"><svg viewBox="1.6 1.8 20.8 20.4" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 6.6Q7.2 2.4 11.8 5.6V16Q7.2 13.2 2.6 15.6Z"/><path d="M21.4 6.6Q16.8 2.4 12.2 5.6V16Q16.8 13.2 21.4 15.6Z"/><path d="M2.6 15.6L3.3 20.8Q7.6 18 11.5 20.8H12.5Q16.4 18 20.7 20.8L21.4 15.6"/><path d="M3 18.2Q7.4 15.4 11.8 18.6M21 18.2Q16.6 15.4 12.2 18.6"/><path d="M5.2 7.9Q7.3 6.5 9.6 7.5M5.2 10.1Q7.3 8.7 9.6 9.7M5.2 12.3Q7.3 10.9 9.6 11.9M18.8 7.9Q16.7 6.5 14.4 7.5M18.8 10.1Q16.7 8.7 14.4 9.7M18.8 12.3Q16.7 10.9 14.4 11.9"/></svg></button>
   <details><summary aria-label="Settings" title="Settings"><svg viewBox="0.9 0.9 22.2 22.2" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></summary>
     <div class="settings">
@@ -1970,15 +1972,17 @@
   function goIdle() { var g = $('go'); g.textContent = _t('弾き始める'); g.classList.remove('slowgo'); }      // "slowly" is on: the start button says so (and is blue), so it cannot be forgotten
   function slowUI() { if (!running && !starting) goIdle(); Array.prototype.forEach.call(document.querySelectorAll('.slvbox'), function (x) { x.hidden = !slowOn; }); Array.prototype.forEach.call(document.querySelectorAll('.slv'), function (b) { var on = +b.getAttribute('data-lv') === slowLv; b.classList.toggle('sel', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); }); $('fsslow').classList.toggle('sel', slowOn); $('slowbtn').classList.toggle('sel', slowOn); $('slowbtn').setAttribute('aria-pressed', slowOn ? 'true' : 'false'); }
   slowUI();
+  var startRetried = false;
   function start() { micGaps = []; try { $('agmsg').hidden = true; } catch (e) {}
     if (running || starting) return; starting = true; shows = [];
     var AC = window.AudioContext || window.webkitAudioContext; ctx = preCtx && preCtx.state !== 'closed' ? preCtx : new AC(); preCtx = null;
     var myCtx = ctx, stopped = false, diag = { calls: 0, peak: 0, via: 'worklet' };
     $('go').textContent = _t('準備中…'); var prepT = setTimeout(function () { if (starting) showErr(_t('マイクを準備しています…（許可の確認が出たら「許可」を押してください）')); }, 1500);
     var fail = function (e) { clearTimeout(prepT); starting = false; if (stopped) return; stopped = true; try { myCtx.close(); } catch (x) {} if (ctx === myCtx) ctx = null; running = false; $('go').textContent = _t('弾き始める'); $('go').classList.remove('on');
+      if (e && e.name === 'InvalidStateError' && !startRetried) { startRetried = true; setTimeout(function () { start(); }, 300); return; }   // iOS audio session left in the wrong mode: it is put back by the next mic request, so try once more by itself
       showErr(_t('マイクを使えません（') + (e && (e.name || '') + ' ' + (e && e.message || e || '')).trim() + _t('）。Safari の「ぁあ」→「Webサイトの設定」でマイクを許可し、ページを再読み込みしてからもう一度押してください。')); };
     var resumed = myCtx.resume ? myCtx.resume().catch(function () {}) : Promise.resolve();
-    micGet().then(function (s) {
+    micGet().then(function (s) { startRetried = false;
       if (stopped) { micRelease(s); return; }
       stream = s; try { recStart(s); } catch (e) {} makePager(); if (myCtx.state !== 'running' && myCtx.resume) resumed = myCtx.resume().catch(function () {});
       var src = myCtx.createMediaStreamSource(s), sink = myCtx.createGain(); sink.gain.value = 0; sink.connect(myCtx.destination);
@@ -2194,7 +2198,7 @@
   var prevRuns = [];                                           // earlier parts of the same session, kept when the follower is restarted (a tap on "here now", the slow button, ...): [{...record, endedBy}]
   function runRecord(maxPts) {
     if (!pager || !pager.trace || !pager.trace.length) return null; var tr = pager.trace, st = Math.max(1, Math.round(tr.length / maxPts)), r2 = function (v) { return Math.round(v * 100) / 100; };
-    return { app: 'v180', title: pkg.title, at: new Date().toISOString(), start: { page: startPos.page, pos: r2(startPos.pos), mark: !!startPos.mark }, frac: +$('frac').value, previewBars: +$('prevbars').value, noiseFloor: pager.gate && pager.gate.floor, nBars: pkg.order.length, onsetT: pager.turner && pager.turner.onsetT, rmsMax: pager.turner && pager.turner.rmsMax, barStart: (function () { try { return Array.prototype.map.call(pager.nominal.barStart, r2); } catch (e) { return null; } })(), slowPace: slowOn ? slowPace() : null, tempoMode: tmode, slowOn: !!slowOn, gaps: micGaps.slice(),
+    return { app: 'v181', title: pkg.title, at: new Date().toISOString(), start: { page: startPos.page, pos: r2(startPos.pos), mark: !!startPos.mark }, frac: +$('frac').value, previewBars: +$('prevbars').value, noiseFloor: pager.gate && pager.gate.floor, nBars: pkg.order.length, onsetT: pager.turner && pager.turner.onsetT, rmsMax: pager.turner && pager.turner.rmsMax, barStart: (function () { try { return Array.prototype.map.call(pager.nominal.barStart, r2); } catch (e) { return null; } })(), slowPace: slowOn ? slowPace() : null, tempoMode: tmode, slowOn: !!slowOn, gaps: micGaps.slice(),
       turns: pager.turner.events.map(function (e) { return { t: r2(e.t), kind: e.kind, from: e.from, to: e.to, pos: r2(e.pos) }; }), previews: pager.turner.previews.map(function (e) { return { t: r2(e.t), from: e.from, to: e.to, pos: r2(e.pos) }; }), shows: shows.slice(0, 400),
       trace: tr.filter(function (r, i) { return i % st === 0; }).map(function (r) { return [r2(r[0]), r2(r[1]), r2(r[2]), r[3], r2(r[4] || 0)]; }) };
   }
@@ -2457,6 +2461,10 @@
   $('go').onclick = function () { running ? stop() : start(); };
   /* the microphone: asked for once, then kept (switched off, not given back) while the app stays open, so that iOS does not ask again at every "弾き始める" */
   var micKeep = null, micTimer = null;
+  (function () {                                   // iOS: after 'playback' mode (set for the wizard's playback) the mic cannot be opened, so every mic request first puts the audio session back
+    var md = navigator.mediaDevices; if (!md || !md.getUserMedia) return; var orig = md.getUserMedia.bind(md);
+    md.getUserMedia = function (c) { try { if (navigator.audioSession) navigator.audioSession.type = 'auto'; } catch (e) {} return orig(c); };
+  })();
   function micGet() {
     clearTimeout(micTimer);
     if (micKeep && micKeep.getAudioTracks().length && micKeep.getAudioTracks().every(function (t) { return t.readyState === 'live'; })) { micKeep.getAudioTracks().forEach(function (t) { t.enabled = true; }); return Promise.resolve(micKeep); }
@@ -2587,7 +2595,7 @@
       wthumbs(); wcheck(); if (preFile && W && W.redoId === e.id) { W.file = preFile; wcheck(); wanalyze(preFile).then(wcheck); if (p.recPg) $('wsetmsg').textContent = _t('今の録音を読み込みました。登録するページを選び、「ここから弾く」のピンと「ここまで」のピンを置いてください。'); } wreplist(); if (!(preFile && p.recPg)) $('wsetmsg').textContent = ''; $('wredonote').hidden = false; $('wredonote').style.display = 'grid'; $('wh3').style.opacity = p.recPg ? '' : '.4'; if (p.recPg) $('wh3').removeAttribute('aria-disabled'); else $('wh3').setAttribute('aria-disabled', 'true'); $('wh4').hidden = false; $('wh4').style.opacity = p.recPg ? '.4' : ''; if (p.recPg) $('wh4').setAttribute('aria-disabled', 'true'); else $('wh4').removeAttribute('aria-disabled'); $('wnext').textContent = _t('再生して、覚えさせる'); $('wmic').textContent = _t('マイクで聞かせて、覚えさせる');
     });
   }
-  function wclose() { if (W && W.timer) clearInterval(W.timer); if (W && W.stream) { try { W.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} } try { var m = $('wmedia'); m.pause(); m.removeAttribute('src'); m.load(); } catch (e) {} if (W && W.ctx) { try { W.ctx.close(); } catch (e) {} } W = null; $('wiz').hidden = true; }
+  function wclose() { try { if (navigator.audioSession) navigator.audioSession.type = 'auto'; } catch (e) {} if (W && W.timer) clearInterval(W.timer); if (W && W.stream) { try { W.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} } try { var m = $('wmedia'); m.pause(); m.removeAttribute('src'); m.load(); } catch (e) {} if (W && W.ctx) { try { W.ctx.close(); } catch (e) {} } W = null; $('wiz').hidden = true; }
   function wcheck() { $('wnorec').disabled = W.imgs.length < 1; var okN = W.imgs.length >= 2 || !!(W.srcSong && W.srcSong.recPg); $('wnext').disabled = !(okN && W.file); $('wmic').disabled = !okN; $('wreppick').disabled = W.imgs.length < 1; }
 
   /* ---------- an unfinished song (title, page pictures, repeats) is saved by itself, so that step ③ can be done later ---------- */
