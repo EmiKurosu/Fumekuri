@@ -236,7 +236,7 @@
 </head>
 <body>
 <header>
-  <h1 id="title">pagic</h1><span id="pg" style="flex:none;color:var(--dim);font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap">p.–</span><span id="hint" aria-live="off"></span><span id="ver" style="color:var(--dim);font-size:11px">v181</span><span style="flex:1"></span>
+  <h1 id="title">pagic</h1><span id="pg" style="flex:none;color:var(--dim);font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap">p.–</span><span id="hint" aria-live="off"></span><span id="ver" style="color:var(--dim);font-size:11px">v182</span><span style="flex:1"></span>
   <span id="snd" style="flex:none;min-width:15ch;text-align:right;font-size:13px;color:var(--dim);white-space:nowrap"></span>
   <div class="readout" aria-live="off"><b id="bar" style="display:none">–</b></div>
   <button id="prepbtn" type="button">本番モード</button>
@@ -1979,7 +1979,7 @@
     var myCtx = ctx, stopped = false, diag = { calls: 0, peak: 0, via: 'worklet' };
     $('go').textContent = _t('準備中…'); var prepT = setTimeout(function () { if (starting) showErr(_t('マイクを準備しています…（許可の確認が出たら「許可」を押してください）')); }, 1500);
     var fail = function (e) { clearTimeout(prepT); starting = false; if (stopped) return; stopped = true; try { myCtx.close(); } catch (x) {} if (ctx === myCtx) ctx = null; running = false; $('go').textContent = _t('弾き始める'); $('go').classList.remove('on');
-      if (e && e.name === 'InvalidStateError' && !startRetried) { startRetried = true; setTimeout(function () { start(); }, 300); return; }   // iOS audio session left in the wrong mode: it is put back by the next mic request, so try once more by itself
+      if (e && e.name === 'InvalidStateError' && !startRetried) { startRetried = true; setTimeout(function () { start(); }, 600); return; }   // iOS audio session left in the wrong mode: it is put back by the next mic request, so try once more by itself
       showErr(_t('マイクを使えません（') + (e && (e.name || '') + ' ' + (e && e.message || e || '')).trim() + _t('）。Safari の「ぁあ」→「Webサイトの設定」でマイクを許可し、ページを再読み込みしてからもう一度押してください。')); };
     var resumed = myCtx.resume ? myCtx.resume().catch(function () {}) : Promise.resolve();
     micGet().then(function (s) { startRetried = false;
@@ -2198,7 +2198,7 @@
   var prevRuns = [];                                           // earlier parts of the same session, kept when the follower is restarted (a tap on "here now", the slow button, ...): [{...record, endedBy}]
   function runRecord(maxPts) {
     if (!pager || !pager.trace || !pager.trace.length) return null; var tr = pager.trace, st = Math.max(1, Math.round(tr.length / maxPts)), r2 = function (v) { return Math.round(v * 100) / 100; };
-    return { app: 'v181', title: pkg.title, at: new Date().toISOString(), start: { page: startPos.page, pos: r2(startPos.pos), mark: !!startPos.mark }, frac: +$('frac').value, previewBars: +$('prevbars').value, noiseFloor: pager.gate && pager.gate.floor, nBars: pkg.order.length, onsetT: pager.turner && pager.turner.onsetT, rmsMax: pager.turner && pager.turner.rmsMax, barStart: (function () { try { return Array.prototype.map.call(pager.nominal.barStart, r2); } catch (e) { return null; } })(), slowPace: slowOn ? slowPace() : null, tempoMode: tmode, slowOn: !!slowOn, gaps: micGaps.slice(),
+    return { app: 'v182', title: pkg.title, at: new Date().toISOString(), start: { page: startPos.page, pos: r2(startPos.pos), mark: !!startPos.mark }, frac: +$('frac').value, previewBars: +$('prevbars').value, noiseFloor: pager.gate && pager.gate.floor, nBars: pkg.order.length, onsetT: pager.turner && pager.turner.onsetT, rmsMax: pager.turner && pager.turner.rmsMax, barStart: (function () { try { return Array.prototype.map.call(pager.nominal.barStart, r2); } catch (e) { return null; } })(), slowPace: slowOn ? slowPace() : null, tempoMode: tmode, slowOn: !!slowOn, gaps: micGaps.slice(),
       turns: pager.turner.events.map(function (e) { return { t: r2(e.t), kind: e.kind, from: e.from, to: e.to, pos: r2(e.pos) }; }), previews: pager.turner.previews.map(function (e) { return { t: r2(e.t), from: e.from, to: e.to, pos: r2(e.pos) }; }), shows: shows.slice(0, 400),
       trace: tr.filter(function (r, i) { return i % st === 0; }).map(function (r) { return [r2(r[0]), r2(r[1]), r2(r[2]), r[3], r2(r[4] || 0)]; }) };
   }
@@ -2461,9 +2461,11 @@
   $('go').onclick = function () { running ? stop() : start(); };
   /* the microphone: asked for once, then kept (switched off, not given back) while the app stays open, so that iOS does not ask again at every "弾き始める" */
   var micKeep = null, micTimer = null;
+  var asSet = false;                               // true only after the app itself switched the audio session to 'playback'
+  function asBack() { if (!asSet) return; asSet = false; try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'; } catch (e) {} }
   (function () {                                   // iOS: after 'playback' mode (set for the wizard's playback) the mic cannot be opened, so every mic request first puts the audio session back
     var md = navigator.mediaDevices; if (!md || !md.getUserMedia) return; var orig = md.getUserMedia.bind(md);
-    md.getUserMedia = function (c) { try { if (navigator.audioSession) navigator.audioSession.type = 'auto'; } catch (e) {} return orig(c); };
+    md.getUserMedia = function (c) { asBack(); return orig(c); };
   })();
   function micGet() {
     clearTimeout(micTimer);
@@ -2595,7 +2597,7 @@
       wthumbs(); wcheck(); if (preFile && W && W.redoId === e.id) { W.file = preFile; wcheck(); wanalyze(preFile).then(wcheck); if (p.recPg) $('wsetmsg').textContent = _t('今の録音を読み込みました。登録するページを選び、「ここから弾く」のピンと「ここまで」のピンを置いてください。'); } wreplist(); if (!(preFile && p.recPg)) $('wsetmsg').textContent = ''; $('wredonote').hidden = false; $('wredonote').style.display = 'grid'; $('wh3').style.opacity = p.recPg ? '' : '.4'; if (p.recPg) $('wh3').removeAttribute('aria-disabled'); else $('wh3').setAttribute('aria-disabled', 'true'); $('wh4').hidden = false; $('wh4').style.opacity = p.recPg ? '.4' : ''; if (p.recPg) $('wh4').setAttribute('aria-disabled', 'true'); else $('wh4').removeAttribute('aria-disabled'); $('wnext').textContent = _t('再生して、覚えさせる'); $('wmic').textContent = _t('マイクで聞かせて、覚えさせる');
     });
   }
-  function wclose() { try { if (navigator.audioSession) navigator.audioSession.type = 'auto'; } catch (e) {} if (W && W.timer) clearInterval(W.timer); if (W && W.stream) { try { W.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} } try { var m = $('wmedia'); m.pause(); m.removeAttribute('src'); m.load(); } catch (e) {} if (W && W.ctx) { try { W.ctx.close(); } catch (e) {} } W = null; $('wiz').hidden = true; }
+  function wclose() { if (W && W.timer) clearInterval(W.timer); if (W && W.stream) { try { W.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} } try { var m = $('wmedia'); m.pause(); m.removeAttribute('src'); m.load(); } catch (e) {} if (W && W.ctx) { try { W.ctx.close(); } catch (e) {} } W = null; $('wiz').hidden = true; asBack(); }
   function wcheck() { $('wnorec').disabled = W.imgs.length < 1; var okN = W.imgs.length >= 2 || !!(W.srcSong && W.srcSong.recPg); $('wnext').disabled = !(okN && W.file); $('wmic').disabled = !okN; $('wreppick').disabled = W.imgs.length < 1; }
 
   /* ---------- an unfinished song (title, page pictures, repeats) is saved by itself, so that step ③ can be done later ---------- */
@@ -3010,7 +3012,7 @@
     if (!W.ready) { $('wsetmsg').textContent = _t('録音の解析が終わるまで、少しお待ちください。'); return; }
     W.marks = []; W.taps = []; W.capFrames = []; wshow('wtapview');
     try { if (micKeep) micRelease(micKeep); clearTimeout(micTimer); } catch (e) {}   // a mic left open keeps iOS in 'record' mode: playback gets quiet or goes to the receiver
-    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}   // iOS: play out loud even with the silent switch on / after the mic was used
+    try { if (navigator.audioSession) { navigator.audioSession.type = 'playback'; asSet = true; } } catch (e) {}   // iOS: play out loud even with the silent switch on / after the mic was used
     var m = $('wmedia'); m.muted = false; m.volume = 1; m.src = URL.createObjectURL(W.file); m.playbackRate = 1; W.rate = 1; $('wrate').textContent = _t('ゆっくり再生: オフ'); $('wrate').hidden = W.capture;
     wupdate();
     var begin = function () { return m.play().then(function () { $('wplay').textContent = _t('⏸ 一時停止'); }); };
